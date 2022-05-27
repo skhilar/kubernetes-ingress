@@ -15,7 +15,6 @@
 package controller
 
 import (
-	"os"
 	"strconv"
 	"time"
 
@@ -28,7 +27,7 @@ import (
 func (c *HAProxyController) monitorChanges() {
 	go c.SyncData()
 
-	informersSynced := []cache.InformerSynced{}
+	var informersSynced []cache.InformerSynced
 	stop := make(chan struct{})
 	epMirror := c.endpointsMirroring()
 	c.crManager = NewCRManager(&c.Store, c.k8s.RestConfig, c.OSArgs.CacheResyncPeriod, c.eventChan, stop)
@@ -102,6 +101,7 @@ func (c *HAProxyController) SyncData() {
 		change := false
 		switch job.SyncType {
 		case COMMAND:
+			//Need to identify someway to check if any configuration is changed
 			c.restart, c.reload = c.auxCfgManager()
 			if hadChanges || c.reload || c.restart {
 				c.updateHAProxy()
@@ -229,52 +229,18 @@ func (c *HAProxyController) endpointsMirroring() bool {
 	return true
 }
 
+//Provided a hack
 // auxCfgManager returns restart or reload requirement based on state and transition of auxiliary configuration file.
 func (c *HAProxyController) auxCfgManager() (restart, reload bool) {
-	info, errStat := os.Stat(c.Cfg.Env.AuxCFGFile)
-	var (
-		modifTime  int64
-		auxCfgFile string = c.Cfg.Env.AuxCFGFile
-		useAuxFile bool
-	)
-
-	defer func() {
-		// Nothing changed
-		if c.AuxCfgModTime == modifTime {
-			return
-		}
-		// Apply decisions
-		c.Client.SetAuxCfgFile(auxCfgFile)
-		c.haproxyProcess.UseAuxFile(useAuxFile)
-		// The file exists now  (modifTime !=0 otherwise nothing changed case).
-		if c.AuxCfgModTime == 0 {
-			restart = true
-		} else {
-			// File already exists,
-			// already in command line parameters just need to reload for modifications.
-			reload = true
-		}
-		c.AuxCfgModTime = modifTime
-		if c.AuxCfgModTime != 0 {
-			logger.Infof("Auxiliary HAProxy config '%s' updated", auxCfgFile)
-		}
-	}()
-
-	// File does not exist
-	if errStat != nil {
-		// nullify it
-		auxCfgFile = ""
-		if c.AuxCfgModTime == 0 {
-			// never existed before
-			return
-		}
-		logger.Infof("Auxiliary HAProxy config '%s' removed", c.Cfg.Env.AuxCFGFile)
-		// but existed so need to restart
-		restart = true
-		return
+	restart, reload = false, false
+	configVersion, err := c.Client.GetConfigVersion()
+	logger.Infof("haproxy config version %d  and controller config version %d", configVersion, c.configVersion)
+	if err != nil {
+		restart, reload = false, false
 	}
-	// File exists
-	useAuxFile = true
-	modifTime = info.ModTime().Unix()
+	if configVersion > c.configVersion {
+		restart, reload = false, true
+		c.configVersion = configVersion
+	}
 	return
 }

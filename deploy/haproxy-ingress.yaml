@@ -163,10 +163,17 @@ spec:
       serviceAccountName: haproxy-kubernetes-ingress
       containers:
       - name: haproxy-ingress
-        image: haproxytech/kubernetes-ingress
+        image: skhilar/kubernetes-ingress
         args:
           - --configmap=haproxy-controller/haproxy-kubernetes-ingress
+          - --namespace-whitelist=default
+          - --namespace-whitelist=haproxy-controller
           - --default-backend-service=haproxy-controller/haproxy-kubernetes-ingress-default-backend
+          - --publish-service=haproxy-controller/haproxy-kubernetes-ingress
+          - --ingress.class=haproxy
+          - --http-bind-port=80
+          - --https-bind-port=443
+          - --log=trace
         securityContext:
           runAsUser:  1000
           runAsGroup: 1000
@@ -179,10 +186,6 @@ spec:
           requests:
             cpu: "500m"
             memory: "50Mi"
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 1042
         ports:
         - name: http
           containerPort: 80
@@ -191,6 +194,14 @@ spec:
         - name: stat
           containerPort: 1024
         env:
+        - name: HAPROXY_HOST
+          value: "xxxxx"
+        - name: HAPROXY_USER
+          value: "xxxx"
+        - name: HAPROXY_PORT
+          value: "5555"
+        - name: HAPROXY_PASSWORD
+          value: "xxxxx"
         - name: TZ
           value: "Etc/UTC"
         - name: POD_NAME

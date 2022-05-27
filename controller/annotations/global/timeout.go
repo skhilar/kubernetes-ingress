@@ -3,7 +3,7 @@ package global
 import (
 	"errors"
 
-	"github.com/haproxytech/client-native/v2/models"
+	"github.com/haproxytech/models"
 
 	"github.com/haproxytech/kubernetes-ingress/controller/annotations/common"
 	"github.com/haproxytech/kubernetes-ingress/controller/store"
@@ -38,7 +38,7 @@ func (a *Timeout) Process(k store.K8s, annotations ...map[string]string) error {
 	case "timeout-client":
 		a.defaults.ClientTimeout = timeout
 	case "timeout-client-fin":
-		a.defaults.ClientFinTimeout = timeout
+		a.defaults.CheckTimeout = timeout
 	case "timeout-connect":
 		a.defaults.ConnectTimeout = timeout
 	case "timeout-http-keep-alive":
@@ -50,7 +50,7 @@ func (a *Timeout) Process(k store.K8s, annotations ...map[string]string) error {
 	case "timeout-server":
 		a.defaults.ServerTimeout = timeout
 	case "timeout-server-fin":
-		a.defaults.ServerFinTimeout = timeout
+		a.defaults.ServerTimeout = timeout
 	case "timeout-tunnel":
 		a.defaults.TunnelTimeout = timeout
 	default:

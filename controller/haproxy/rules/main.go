@@ -3,8 +3,7 @@ package rules
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/haproxytech/client-native/v2/models"
+	"github.com/haproxytech/models"
 
 	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/api"
 	"github.com/haproxytech/kubernetes-ingress/controller/utils"

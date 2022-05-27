@@ -17,7 +17,7 @@ package controller
 import (
 	"github.com/go-test/deep"
 
-	"github.com/haproxytech/client-native/v2/models"
+	"github.com/haproxytech/models"
 
 	"github.com/haproxytech/kubernetes-ingress/controller/annotations"
 	"github.com/haproxytech/kubernetes-ingress/controller/annotations/common"
@@ -140,7 +140,7 @@ func (c *HAProxyController) defaultsCfg() (reload bool) {
 	return
 }
 
-// handleDefaultService configures HAProy default backend provided via cli param "default-backend-service"
+// handleDefaultService configures HAProxy default backend provided via cli param "default-backend-service"
 func (c *HAProxyController) handleDefaultService() (reload bool) {
 	var svc *service.Service
 	ns, name, err := common.GetK8sPath("default-backend-service", c.Store.ConfigMaps.Main.Annotations)
@@ -155,6 +155,7 @@ func (c *HAProxyController) handleDefaultService() (reload bool) {
 		SvcName:          name,
 		IsDefaultBackend: true,
 	}
+	logger.Infof("Default service namespace %s service name %s ", ns, name)
 	if svc, err = service.New(c.Store, ingressPath, nil, false, c.Store.ConfigMaps.Main.Annotations); err == nil {
 		reload, err = svc.SetDefaultBackend(c.Store, &c.Cfg, c.Client, []string{c.Cfg.FrontHTTP, c.Cfg.FrontHTTPS})
 	}

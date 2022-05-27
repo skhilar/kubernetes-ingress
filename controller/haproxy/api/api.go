@@ -1,15 +1,19 @@
 package api
 
 import (
-	clientnative "github.com/haproxytech/client-native/v2"
-	"github.com/haproxytech/client-native/v2/configuration"
-	"github.com/haproxytech/client-native/v2/models"
-	"github.com/haproxytech/client-native/v2/runtime"
-
+	"context"
+	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/client/configuration"
+	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/client/dataplane"
+	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/client/transactions"
 	"github.com/haproxytech/kubernetes-ingress/controller/store"
+	"github.com/haproxytech/kubernetes-ingress/controller/utils"
+	"github.com/haproxytech/models"
 )
 
+var logger = utils.GetLogger()
+
 type HAProxyClient interface {
+	GetConfigVersion() (int64, error)
 	APIStartTransaction() error
 	APICommitTransaction() error
 	APIDisposeTransaction()
@@ -52,10 +56,11 @@ type HAProxyClient interface {
 	GlobalPushConfiguration(models.Global) error
 	GlobalCfgSnippet(snippet []string) error
 	GetMap(mapFile string) (*models.Map, error)
-	SetMapContent(mapFile string, payload string) error
+	DeleteMap(mapFile string) error
+	SetMapContent(mapFile string, key string, value string) error
 	SetServerAddr(backendName string, serverName string, ip string, port int) error
 	SetServerState(backendName string, serverName string, state string) error
-	ServerGet(serverName, backendNa string) (models.Server, error)
+	ServerGet(serverName, backendName string) (models.Server, error)
 	SetAuxCfgFile(auxCfgFile string)
 	SyncBackendSrvs(backend *store.RuntimeBackend, portUpdated bool) error
 	UserListDeleteAll() error
@@ -63,82 +68,62 @@ type HAProxyClient interface {
 	UserListCreateByGroup(group string, userPasswordMap map[string][]byte) error
 }
 
-type clientNative struct {
-	nativeAPI                   clientnative.HAProxyClient
+type haProxyClient struct {
+	client                      *dataplane.ApiClient
 	activeTransaction           string
 	activeTransactionHasChanges bool
 }
 
-func Init(transactionDir, configFile, programPath, runtimeSocket string) (client HAProxyClient, err error) {
-	runtimeClient := runtime.Client{}
-	err = runtimeClient.InitWithSockets(map[int]string{
-		0: runtimeSocket,
-	})
-	if err != nil {
-		return nil, err
+func NewHAProxyClient(haProxyHost, userName, password string, haProxyPort int) HAProxyClient {
+	return &haProxyClient{client: dataplane.NewApiClient(haProxyHost, userName, password, haProxyPort), activeTransaction: "",
+		activeTransactionHasChanges: false,
 	}
-
-	confClient := configuration.Client{}
-	confParams := configuration.ClientParams{
-		ConfigurationFile:         configFile,
-		PersistentTransactions:    false,
-		Haproxy:                   programPath,
-		ValidateConfigurationFile: true,
-		UseValidation:             true,
-	}
-
-	if transactionDir != "" {
-		confParams.TransactionDir = transactionDir
-	}
-	err = confClient.Init(confParams)
-	if err != nil {
-		return nil, err
-	}
-
-	cn := clientNative{
-		nativeAPI: clientnative.HAProxyClient{
-			Configuration: &confClient,
-			Runtime:       &runtimeClient,
-		},
-	}
-	return &cn, nil
 }
 
-func (c *clientNative) APIStartTransaction() error {
-	version, errVersion := c.nativeAPI.Configuration.GetVersion("")
-	if errVersion != nil || version < 1 {
-		// silently fallback to 1
-		version = 1
+func (c *haProxyClient) GetConfigVersion() (int64, error) {
+	configVersion, err := c.client.Configuration.GetConfigurationVersion(configuration.NewGetConfigurationVersionWriter())
+	if err != nil {
+		return 0, err
 	}
-	transaction, err := c.nativeAPI.Configuration.StartTransaction(version)
+	return configVersion.Version, nil
+}
+func (c *haProxyClient) APIStartTransaction() error {
+	logger.Infof("Transaction started")
+	configVersion, err := c.client.Configuration.GetConfigurationVersion(configuration.NewGetConfigurationVersionWriter())
 	if err != nil {
 		return err
 	}
-	c.activeTransaction = transaction.ID
-	c.activeTransactionHasChanges = false
+	transactionWriter := transactions.NewCreateTransactionWriter()
+	transactionWriter.WithVersion(configVersion.Version).WithContext(context.Background())
+	activeTransaction, err := c.client.Transaction.CreateTransaction(transactionWriter)
+	if err != nil {
+		return err
+	}
+	c.activeTransaction = activeTransaction.Payload.ID
 	return nil
 }
 
-func (c *clientNative) APICommitTransaction() error {
+func (c *haProxyClient) APICommitTransaction() error {
+	logger.Infof("committing transaction")
 	if !c.activeTransactionHasChanges {
-		if err := c.nativeAPI.Configuration.DeleteTransaction(c.activeTransaction); err != nil {
-			return err
-		}
-		return nil
+		logger.Infof("Deleting transaction as there is no change")
+		deleteTransactionWriter := transactions.NewDeleteTransactionWriter()
+		deleteTransactionWriter.WithContext(context.Background()).WithTransactionID(c.activeTransaction)
+		_, err := c.client.Transaction.DeleteTransaction(deleteTransactionWriter)
+		return err
 	}
-	_, err := c.nativeAPI.Configuration.CommitTransaction(c.activeTransaction)
+	commitWriter := transactions.NewCommitTransactionWriter()
+	commitWriter.WithTransactionID(c.activeTransaction).WithContext(context.Background())
+	_, _, err := c.client.Transaction.CommitTransaction(commitWriter)
+	logger.Infof("Transaction committed")
 	return err
 }
 
-func (c *clientNative) APIDisposeTransaction() {
+func (c *haProxyClient) APIDisposeTransaction() {
 	c.activeTransaction = ""
 	c.activeTransactionHasChanges = false
 }
 
-func (c *clientNative) SetAuxCfgFile(auxCfgFile string) {
-	if auxCfgFile == "" {
-		c.nativeAPI.Configuration.Transaction.ValidateConfigFilesAfter = nil
-		return
-	}
-	c.nativeAPI.Configuration.Transaction.ValidateConfigFilesAfter = []string{auxCfgFile}
+func (c *haProxyClient) SetAuxCfgFile(auxCfgFile string) {
+	//NA
 }

@@ -140,6 +140,10 @@ func main() {
 			CfgDir:        "/etc/haproxy/",
 			RuntimeDir:    "/var/run",
 			StateDir:      "/var/state/haproxy/",
+			Host:          os.Getenv("HAPROXY_HOST"),
+			Port:          os.Getenv("HAPROXY_PORT"),
+			User:          os.Getenv("HAPROXY_USER"),
+			Password:      os.Getenv("HAPROXY_PASSWORD"),
 		},
 	}
 	if osArgs.External {

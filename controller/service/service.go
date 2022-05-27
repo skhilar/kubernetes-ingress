@@ -16,11 +16,12 @@ package service
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/json"
 	"strconv"
 
 	"github.com/go-test/deep"
 
-	"github.com/haproxytech/client-native/v2/models"
+	"github.com/haproxytech/models"
 
 	"github.com/haproxytech/kubernetes-ingress/controller/annotations"
 	"github.com/haproxytech/kubernetes-ingress/controller/configuration"
@@ -115,13 +116,18 @@ func (s *Service) HandleBackend(client api.HAProxyClient, store store.K8s) (relo
 		// Update Backend
 		result := deep.Equal(newBackend, backend)
 		if len(result) != 0 {
+			logger.Infof("Editing backend %s", newBackend.Name)
 			if err = client.BackendEdit(*newBackend); err != nil {
+				logger.Errorf("Error in editing backend %s", err)
 				return
 			}
 			reload = true
 			logger.Debugf("Service '%s/%s': backend '%s' updated: %s\nReload required", s.resource.Namespace, s.resource.Name, newBackend.Name, result)
 		}
 	} else {
+		logger.Infof("Creating backend %s", newBackend.Name)
+		data, _ := json.Marshal(newBackend)
+		logger.Infof("Backend details %s", string(data))
 		if err = client.BackendCreate(*newBackend); err != nil {
 			return
 		}
@@ -173,9 +179,9 @@ func (s *Service) getBackendModel(store store.K8s) (backend *models.Backend, err
 			backend.DefaultServer.InitAddr = "last,libc,none"
 		}
 	}
-	if backend.Cookie != nil && backend.Cookie.Dynamic && backend.DynamicCookieKey == "" {
+	/*if backend.Cookie != nil && backend.Cookie.Dynamic && backend.DynamicCookieKey == "" {
 		backend.DynamicCookieKey = cookieKey
-	}
+	}*/
 	return backend, nil
 }
 
@@ -188,9 +194,12 @@ func (s *Service) SetDefaultBackend(k store.K8s, cfg *configuration.ControllerCf
 	var frontend models.Frontend
 	var ftReload bool
 	frontend, err = api.FrontendGet(frontends[0])
+
 	if err != nil {
+		logger.Errorf("Error in getting frontend %s", err)
 		return
 	}
+	logger.Infof("Frontend name %s", frontend.Name)
 	if frontend.Mode == "tcp" {
 		s.modeTCP = true
 	}

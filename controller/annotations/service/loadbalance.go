@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/haproxytech/client-native/v2/models"
+	"github.com/haproxytech/models"
 
 	"github.com/haproxytech/kubernetes-ingress/controller/annotations/common"
 	"github.com/haproxytech/kubernetes-ingress/controller/store"
@@ -115,7 +115,7 @@ func getParamsFromInput(value string) (*models.Balance, error) {
 			// We already got the next token
 			i++
 		case "path-only":
-			balance.URIPathOnly = true
+			balance.URIWhole = true
 		case "check_post":
 			if i+1 >= len(tokens) {
 				return balance, fmt.Errorf("missing parameter for option '%s' in balance configuration", token)

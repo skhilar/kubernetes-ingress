@@ -1,158 +1,249 @@
 package api
 
 import (
+	"context"
 	"fmt"
-
-	"github.com/haproxytech/client-native/v2/models"
-	"github.com/haproxytech/config-parser/v4/types"
+	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/client/bind"
+	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/client/frontend"
+	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/client/httprule"
+	"github.com/haproxytech/models"
 )
 
-func (c *clientNative) FrontendCfgSnippetSet(frontendName string, value []string) error {
-	config, err := c.nativeAPI.Configuration.GetParser(c.activeTransaction)
+func (c *haProxyClient) FrontendCfgSnippetSet(frontendName string, value []string) error {
+	return nil
+}
+
+func (c *haProxyClient) FrontendCreate(f models.Frontend) error {
+	logger.Infof("Creating front end %s ", f.Name)
+	frontendWriter := frontend.NewCreateFrontendWriter()
+	frontendWriter.WithContext(context.Background()).WithTransactionID(c.activeTransaction).WithFrontend(f)
+	_, _, err := c.client.Frontend.CreateFrontend(frontendWriter)
 	if err != nil {
+		logger.Errorf("Error in creating front end %s ", err)
 		return err
 	}
-	if len(value) == 0 {
-		err = config.Set("frontend", frontendName, "config-snippet", nil)
-	} else {
-		err = config.Set("frontend", frontendName, "config-snippet", types.StringSliceC{Value: value})
-	}
-	if err != nil {
-		c.activeTransactionHasChanges = true
-	}
-	return err
-}
-
-func (c *clientNative) FrontendCreate(frontend models.Frontend) error {
 	c.activeTransactionHasChanges = true
-	return c.nativeAPI.Configuration.CreateFrontend(&frontend, c.activeTransaction, 0)
+	return nil
 }
 
-func (c *clientNative) FrontendDelete(frontendName string) error {
-	c.activeTransactionHasChanges = true
-	return c.nativeAPI.Configuration.DeleteFrontend(frontendName, c.activeTransaction, 0)
-}
-
-func (c *clientNative) FrontendsGet() (models.Frontends, error) {
-	_, frontends, err := c.nativeAPI.Configuration.GetFrontends(c.activeTransaction)
-	return frontends, err
-}
-
-func (c *clientNative) FrontendGet(frontendName string) (models.Frontend, error) {
-	_, frontend, err := c.nativeAPI.Configuration.GetFrontend(frontendName, c.activeTransaction)
+func (c *haProxyClient) FrontendDelete(frontendName string) error {
+	logger.Infof("Deleting frontend %s ", frontendName)
+	frontendWriter := frontend.NewDeleteFrontendWriter()
+	frontendWriter.WithTransactionID(c.activeTransaction).WithContext(context.Background()).WithName(frontendName)
+	_, _, err := c.client.Frontend.DeleteFrontend(frontendWriter)
 	if err != nil {
+		logger.Infof("Error in deleting frontend %s ", err)
+		return err
+	}
+	c.activeTransactionHasChanges = true
+	return nil
+}
+
+func (c *haProxyClient) FrontendsGet() (models.Frontends, error) {
+	logger.Infof("Getting all frontends")
+	frontendWriter := frontend.NewGetFrontendsWriter()
+	frontendWriter.WithContext(context.Background()).WithTransactionID(c.activeTransaction)
+	frontends, err := c.client.Frontend.GetFrontends(frontendWriter)
+	if err != nil {
+		logger.Errorf("Error in getting all frontends %s ", err)
+		return models.Frontends{}, err
+	}
+	return *frontends.Payload.Data, nil
+}
+
+func (c *haProxyClient) FrontendGet(frontendName string) (models.Frontend, error) {
+	logger.Infof("Getting fronened %s ", frontendName)
+	frontendWriter := frontend.NewGetFrontendWriter()
+	frontendWriter.WithTransactionID(c.activeTransaction).WithContext(context.Background()).WithName(frontendName)
+	frontend, err := c.client.Frontend.GetFrontend(frontendWriter)
+	if err != nil {
+		logger.Errorf("Error in getting frontend %s ", err)
 		return models.Frontend{}, err
 	}
-	return *frontend, err
+	return *frontend.Payload.Data, nil
 }
 
-func (c *clientNative) FrontendEdit(frontend models.Frontend) error {
+func (c *haProxyClient) FrontendEdit(f models.Frontend) error {
+	logger.Infof("Editing frontend %s ", f.Name)
+	frontendWriter := frontend.NewEditFrontendWriter()
+	frontendWriter.WithName(f.Name).WithContext(context.Background()).WithTransactionID(c.activeTransaction).WithFrontend(f)
+	_, _, err := c.client.Frontend.EditFrontend(frontendWriter)
+	if err != nil {
+		logger.Errorf("Error in editing frontend %s ", err)
+		return err
+	}
 	c.activeTransactionHasChanges = true
-	return c.nativeAPI.Configuration.EditFrontend(frontend.Name, &frontend, c.activeTransaction, 0)
+	return nil
 }
 
-func (c *clientNative) FrontendEnableSSLOffload(frontendName string, certDir string, alpn string, strictSNI bool) (err error) {
-	binds, err := c.FrontendBindsGet(frontendName)
+func (c *haProxyClient) FrontendEnableSSLOffload(frontendName string, certDir string, alpn string, strictSNI bool) error {
+	logger.Infof("Enabling ssl offload for frnotend %s ", frontendName)
+	bindWriter := bind.NewGetBindsWriter()
+	bindWriter.WithFrontend(frontendName).WithTransactionID(c.activeTransaction).WithContext(context.Background())
+	binds, err := c.client.Bind.GetBinds(bindWriter)
 	if err != nil {
 		return err
 	}
-	for _, bind := range binds {
-		bind.Ssl = true
-		bind.SslCertificate = certDir
+	for _, b := range *binds.Payload.Data {
+		b.Ssl = true
+		b.SslCertificate = certDir
 		if alpn != "" {
-			bind.Alpn = alpn
-			bind.StrictSni = strictSNI
+			b.Alpn = alpn
+			b.StrictSni = strictSNI
 		}
-		err = c.FrontendBindEdit(frontendName, *bind)
+		editBindWriter := bind.NewEditBindWriter()
+		editBindWriter.WithContext(context.Background()).
+			WithTransactionID(c.activeTransaction).WithFrontend(frontendName).
+			WithName(b.Name).WithBind(*b)
+		_, _, err = c.client.Bind.EditBind(editBindWriter)
+		if err != nil {
+			return err
+		}
 	}
+	c.activeTransactionHasChanges = true
+	return nil
+}
+
+func (c *haProxyClient) FrontendDisableSSLOffload(frontendName string) error {
+	logger.Infof("Disabling ssl offload for frnotend %s ", frontendName)
+	bindWriter := bind.NewGetBindsWriter()
+	bindWriter.WithFrontend(frontendName).WithTransactionID(c.activeTransaction).WithContext(context.Background())
+	binds, err := c.client.Bind.GetBinds(bindWriter)
 	if err != nil {
 		return err
 	}
-	return err
+	for _, b := range *binds.Payload.Data {
+		b.Ssl = false
+		b.SslCafile = ""
+		b.Verify = ""
+		b.SslCertificate = ""
+		b.Alpn = ""
+		b.StrictSni = false
+		editBindWriter := bind.NewEditBindWriter()
+		editBindWriter.WithContext(context.Background()).
+			WithTransactionID(c.activeTransaction).WithFrontend(frontendName).
+			WithName(b.Name).WithBind(*b)
+		_, _, err = c.client.Bind.EditBind(editBindWriter)
+		if err != nil {
+			return err
+		}
+	}
+	c.activeTransactionHasChanges = true
+	return nil
 }
 
-func (c *clientNative) FrontendDisableSSLOffload(frontendName string) (err error) {
-	binds, err := c.FrontendBindsGet(frontendName)
+func (c *haProxyClient) FrontendBindsGet(frontend string) (models.Binds, error) {
+	logger.Infof("Getting bind for frontend %s ", frontend)
+	bindsWriter := bind.NewGetBindsWriter()
+	bindsWriter.WithFrontend(frontend).WithTransactionID(c.activeTransaction).WithContext(context.Background())
+	binds, err := c.client.Bind.GetBinds(bindsWriter)
 	if err != nil {
+		logger.Errorf("Error in getting bind %s ", err)
+		return models.Binds{}, err
+	}
+	return *binds.Payload.Data, nil
+}
+
+func (c *haProxyClient) FrontendBindCreate(frontend string, b models.Bind) error {
+	logger.Infof("Creating bind for frontend %s bind %s ", frontend, b.Name)
+	bindWriter := bind.NewCreateBindWriter()
+	bindWriter.WithContext(context.Background()).
+		WithTransactionID(c.activeTransaction).WithFrontend(frontend).WithBind(b)
+	_, _, err := c.client.Bind.CreateBind(bindWriter)
+	if err != nil {
+		logger.Infof("Error in creating bind %s ", err)
 		return err
 	}
-	for _, bind := range binds {
-		bind.Ssl = false
-		bind.SslCafile = ""
-		bind.Verify = ""
-		bind.SslCertificate = ""
-		bind.Alpn = ""
-		bind.StrictSni = false
-		err = c.FrontendBindEdit(frontendName, *bind)
-	}
+	c.activeTransactionHasChanges = true
+	return nil
+}
+
+func (c *haProxyClient) FrontendBindEdit(frontend string, b models.Bind) error {
+	logger.Infof("Editing bind for frontend %s bind %s ", frontend, b.Name)
+	bindWriter := bind.NewEditBindWriter()
+	bindWriter.WithBind(b).WithFrontend(frontend).
+		WithTransactionID(c.activeTransaction).WithContext(context.Background()).WithName(b.Name)
+	_, _, err := c.client.Bind.EditBind(bindWriter)
 	if err != nil {
+		logger.Errorf("Error in editing bind %s ", err)
 		return err
 	}
-	return err
-}
-
-func (c *clientNative) FrontendBindsGet(frontend string) (models.Binds, error) {
-	_, binds, err := c.nativeAPI.Configuration.GetBinds(frontend, c.activeTransaction)
-	return binds, err
-}
-
-func (c *clientNative) FrontendBindCreate(frontend string, bind models.Bind) error {
 	c.activeTransactionHasChanges = true
-	return c.nativeAPI.Configuration.CreateBind(frontend, &bind, c.activeTransaction, 0)
+	return nil
 }
 
-func (c *clientNative) FrontendBindEdit(frontend string, bind models.Bind) error {
-	c.activeTransactionHasChanges = true
-	return c.nativeAPI.Configuration.EditBind(bind.Name, frontend, &bind, c.activeTransaction, 0)
-}
-
-func (c *clientNative) FrontendHTTPRequestRuleCreate(frontend string, rule models.HTTPRequestRule, ingressACL string) error {
-	c.activeTransactionHasChanges = true
+func (c *haProxyClient) FrontendHTTPRequestRuleCreate(frontend string, rule models.HTTPRequestRule, ingressACL string) error {
+	logger.Infof("Creating request rule for frontend %s ", frontend)
+	requestRuleWriter := httprule.NewCreateHttpRequestRuleWriter()
+	requestRuleWriter.WithContext(context.Background()).WithTransactionID(c.activeTransaction).
+		WithParentName(frontend).WithParentType("frontend").WithRequestRule(rule)
 	if ingressACL != "" {
 		rule.Cond = "if"
 		rule.CondTest = fmt.Sprintf("%s %s", ingressACL, rule.CondTest)
 	}
-	return c.nativeAPI.Configuration.CreateHTTPRequestRule("frontend", frontend, &rule, c.activeTransaction, 0)
+	_, _, err := c.client.HttpRule.CreateHttpRequestRule(requestRuleWriter)
+	if err != nil {
+		return err
+	}
+	c.activeTransactionHasChanges = true
+	return nil
 }
 
-func (c *clientNative) FrontendHTTPResponseRuleCreate(frontend string, rule models.HTTPResponseRule, ingressACL string) error {
-	c.activeTransactionHasChanges = true
+func (c *haProxyClient) FrontendHTTPResponseRuleCreate(frontend string, rule models.HTTPResponseRule, ingressACL string) error {
+	responseRuleWriter := httprule.NewCreateHttpResponseRuleWriter()
+	responseRuleWriter.WithParentType("frontend").WithParentName(frontend).
+		WithTransactionID(c.activeTransaction).WithContext(context.Background()).
+		WithResponseRule(rule)
 	if ingressACL != "" {
 		rule.Cond = "if"
 		rule.CondTest = fmt.Sprintf("%s %s", ingressACL, rule.CondTest)
 	}
-	return c.nativeAPI.Configuration.CreateHTTPResponseRule("frontend", frontend, &rule, c.activeTransaction, 0)
+	_, _, err := c.client.HttpRule.CreateHttpResponseRule(responseRuleWriter)
+	if err != nil {
+		return err
+	}
+	c.activeTransactionHasChanges = true
+	return nil
 }
 
-func (c *clientNative) FrontendTCPRequestRuleCreate(frontend string, rule models.TCPRequestRule, ingressACL string) error {
-	c.activeTransactionHasChanges = true
-	if ingressACL != "" {
-		rule.Cond = "if"
-		rule.CondTest = fmt.Sprintf("%s %s", ingressACL, rule.CondTest)
-	}
-	return c.nativeAPI.Configuration.CreateTCPRequestRule("frontend", frontend, &rule, c.activeTransaction, 0)
+func (c *haProxyClient) FrontendTCPRequestRuleCreate(frontend string, rule models.TCPRequestRule, ingressACL string) error {
+	return nil
 }
 
-func (c *clientNative) FrontendRuleDeleteAll(frontend string) {
+func (c *haProxyClient) FrontendRuleDeleteAll(frontend string) {
 	c.activeTransactionHasChanges = true
+	requestRuleWriter := httprule.NewGetHttpRequestRulesWriter()
+	requestRuleWriter.WithContext(context.Background()).WithTransactionID(c.activeTransaction).
+		WithParentName(frontend).WithParentType("frontend")
+	requestRules, err := c.client.HttpRule.GetHttpRequestRules(requestRuleWriter)
+	if err != nil {
+		return
+	}
+	for _, rule := range *requestRules.Payload.Data {
+		deleteRuleWriter := httprule.NewDeleteHttpRequestRuleWriter()
+		deleteRuleWriter.WithParentType("frontend").WithParentName(frontend).
+			WithTransactionID(c.activeTransaction).WithContext(context.Background()).WithIndex(*rule.Index)
+		_, _, err := c.client.HttpRule.DeleteHttpRequestRule(deleteRuleWriter)
+		if err != nil {
+			return
+		}
+	}
 
-	for {
-		err := c.nativeAPI.Configuration.DeleteHTTPRequestRule(0, "frontend", frontend, c.activeTransaction, 0)
+	responseRuleWriter := httprule.NewGetHttpResponseRulesWriter()
+	responseRuleWriter.WithContext(context.Background()).WithTransactionID(c.activeTransaction).
+		WithParentName(frontend).WithParentType("frontend")
+	responseRules, err := c.client.HttpRule.GetHttpResponseRules(responseRuleWriter)
+	if err != nil {
+		return
+	}
+	for _, rule := range *responseRules.Payload.Data {
+		deleteRuleWriter := httprule.NewDeleteHttpResponseRuleWriter()
+		deleteRuleWriter.WithParentType("frontend").WithParentName(frontend).
+			WithTransactionID(c.activeTransaction).WithContext(context.Background()).WithIndex(*rule.Index)
+		_, _, err := c.client.HttpRule.DeleteHttpResponseRule(deleteRuleWriter)
 		if err != nil {
-			break
+			return
 		}
 	}
-	for {
-		err := c.nativeAPI.Configuration.DeleteHTTPResponseRule(0, "frontend", frontend, c.activeTransaction, 0)
-		if err != nil {
-			break
-		}
-	}
-	for {
-		err := c.nativeAPI.Configuration.DeleteTCPRequestRule(0, "frontend", frontend, c.activeTransaction, 0)
-		if err != nil {
-			break
-		}
-	}
-	// No usage of TCPResponseRules yet.
+	c.activeTransactionHasChanges = true
 }

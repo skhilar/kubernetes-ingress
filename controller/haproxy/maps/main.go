@@ -15,6 +15,7 @@
 package maps
 
 import (
+	"github.com/haproxytech/models"
 	"hash/fnv"
 	"os"
 	"path"
@@ -63,6 +64,15 @@ func (mf *mapFile) getContent() (string, uint64) {
 	return content, h.Sum64()
 }
 
+func (mf *mapFile) getMapEntry() []models.MapEntry {
+	var mapEntry []models.MapEntry
+	for _, r := range mf.rows {
+		parts := strings.Split(r, "\t\t\t")
+		mapEntry = append(mapEntry, models.MapEntry{Key: parts[0], Value: parts[1]})
+	}
+	return mapEntry
+}
+
 func New(path string) *MapFiles {
 	mapDir = path
 	var maps MapFiles = map[Name]*mapFile{
@@ -109,6 +119,8 @@ func (m MapFiles) Refresh(client api.HAProxyClient) (reload bool) {
 		if content == "" && !mapFile.preserve {
 			logger.Error(os.Remove(string(filename)))
 			delete(m, name)
+			err := client.DeleteMap(string(name))
+			logger.Errorf("not able to delete map file %s", err)
 			continue
 		} else if f, err = os.Create(string(filename)); err != nil {
 			logger.Error(err)
@@ -122,14 +134,15 @@ func (m MapFiles) Refresh(client api.HAProxyClient) (reload bool) {
 		logger.Error(f.Sync())
 		reload = true
 		logger.Debugf("Map file '%s' updated, reload required", name)
-		// if err = client.SetMapContent(name, content); err != nil {
-		// 	if strings.HasPrefix(err.Error(), "maps dir doesn't exists") {
-		// 		logger.Debugf("creating Map file %s", name)
-		// 	} else {
-		// 		logger.Warningf("dynamic update of '%s' Map file failed: %s", name, err.Error()[:200])
-		// 	}
-		// 	reload = true
-		// }
+		mapEntries := mapFile.getMapEntry()
+		for _, mapEntry := range mapEntries {
+			logger.Infof("setting for file %s key %s value %s", name, mapEntry.Key, mapEntry.Value)
+			err := client.SetMapContent(string(name), mapEntry.Key, mapEntry.Value)
+			if err != nil {
+				logger.Debugf("not able to create map file %s", err)
+			}
+			reload = true
+		}
 	}
 	return reload
 }

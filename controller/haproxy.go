@@ -48,5 +48,5 @@ func (c *HAProxyController) haproxyStartup() {
 		}
 	}
 	logger.Printf("Starting HAProxy with %s %s", c.Cfg.Env.MainCFGFile, msgAuxConfigFile)
-	logger.Panic(c.haproxyService("start"))
+	//logger.Panic(c.haproxyService("start"))
 }

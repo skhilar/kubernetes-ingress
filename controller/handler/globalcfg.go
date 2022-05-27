@@ -15,7 +15,7 @@
 package handler
 
 import (
-	"github.com/haproxytech/client-native/v2/models"
+	"github.com/haproxytech/models"
 
 	config "github.com/haproxytech/kubernetes-ingress/controller/configuration"
 	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/api"

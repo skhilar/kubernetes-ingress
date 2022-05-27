@@ -57,6 +57,10 @@ type Env struct {
 	MapDir          string
 	PatternDir      string
 	ErrFileDir      string
+	Host            string
+	Port            string
+	User            string
+	Password        string
 }
 
 // Init initialize configuration

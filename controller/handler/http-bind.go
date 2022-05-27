@@ -15,7 +15,7 @@
 package handler
 
 import (
-	"github.com/haproxytech/client-native/v2/models"
+	"github.com/haproxytech/models"
 
 	config "github.com/haproxytech/kubernetes-ingress/controller/configuration"
 	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/api"
@@ -47,7 +47,7 @@ func (h HTTPBind) Update(k store.K8s, cfg *config.ControllerCfg, api api.HAProxy
 	if h.IPv4 {
 		protos["v4"] = h.IPv4Addr
 	}
-	if h.IPv6 {
+	/*if h.IPv6 {
 		protos["v6"] = h.IPv6Addr
 
 		// IPv6 not disabled, so add v6 listening to stats frontend
@@ -57,7 +57,7 @@ func (h HTTPBind) Update(k store.K8s, cfg *config.ControllerCfg, api api.HAProxy
 				Address: ":::1024",
 				V4v6:    false,
 			}))
-	}
+	}*/
 	for ftName, ftPort := range frontends {
 		for proto, addr := range protos {
 			bind := models.Bind{

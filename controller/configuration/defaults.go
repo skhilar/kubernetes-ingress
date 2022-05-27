@@ -1,7 +1,7 @@
 package configuration
 
 import (
-	"github.com/haproxytech/client-native/v2/models"
+	"github.com/haproxytech/models"
 
 	"github.com/haproxytech/kubernetes-ingress/controller/utils"
 )
@@ -11,9 +11,9 @@ func SetGlobal(global *models.Global, logTargets *models.LogTargets, env Env) {
 	// Enforced values
 	global.MasterWorker = true
 	global.Pidfile = env.PIDFile
-	global.Localpeer = "local"
-	global.ServerStateBase = env.StateDir
-	global.ServerStateFile = "global"
+	//global.Localpeer = "local"
+	//global.ServerStateBase = env.StateDir
+	//global.ServerStateFile = "global"
 	runtimeAPIs := []*models.RuntimeAPI{{
 		Address:           &env.RuntimeSocket,
 		ExposeFdListeners: true,
@@ -62,7 +62,7 @@ func SetGlobal(global *models.Global, logTargets *models.LogTargets, env Env) {
 func SetDefaults(defaults *models.Defaults) {
 	// Enforced values
 	// Logging is enforced in DefaultsPushConfiguration method
-	defaults.LoadServerStateFromFile = "global"
+	//defaults.LoadServerStateFromFile = "global"
 
 	// Default values
 	enabled := "enabled"

@@ -15,6 +15,7 @@
 package controller
 
 import (
+	"fmt"
 	config "github.com/haproxytech/kubernetes-ingress/controller/configuration"
 	"github.com/haproxytech/kubernetes-ingress/controller/handler"
 	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/api"
@@ -71,6 +72,7 @@ func (c *HAProxyController) startupHandlers() error {
 			IPv4Addr:  c.OSArgs.IPV4BindAddr,
 			IPv6Addr:  c.OSArgs.IPV6BindAddr,
 		}}
+	fmt.Println("Initializing handlers ")
 	for _, handler := range handlers {
 		_, err := handler.Update(c.Store, &c.Cfg, c.Client)
 		if err != nil {

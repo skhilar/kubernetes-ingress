@@ -18,7 +18,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/haproxytech/client-native/v2/models"
+	"github.com/haproxytech/models"
 
 	"github.com/haproxytech/kubernetes-ingress/controller/annotations"
 	config "github.com/haproxytech/kubernetes-ingress/controller/configuration"
@@ -159,7 +159,7 @@ func (h HTTPS) Update(k store.K8s, cfg *config.ControllerCfg, api api.HAProxyCli
 			logger.Panic(api.FrontendEnableSSLOffload(cfg.FrontHTTPS, h.CertDir, h.alpn, h.strictSNI))
 			cfg.HTTPS = true
 			reload = true
-			logger.Debug("SSLOffload enabled, reload required")
+			logger.Debug("SSLOffload enabeld, reload required")
 		}
 		r, err := h.handleClientTLSAuth(k, cfg, api)
 		if err != nil {

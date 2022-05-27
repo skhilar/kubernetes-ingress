@@ -15,10 +15,11 @@
 package controller
 
 import (
+	"github.com/haproxytech/kubernetes-ingress/controller/syncer"
 	"path/filepath"
+	"strconv"
 	"strings"
 
-	"github.com/haproxytech/client-native/v2/models"
 	config "github.com/haproxytech/kubernetes-ingress/controller/configuration"
 	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/api"
 	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/process"
@@ -48,6 +49,28 @@ type HAProxyController struct {
 	haproxyProcess process.Process
 	PodNamespace   string
 	PodPrefix      string
+	configVersion  int64
+	SyncChannel    chan struct{}
+	DoneChannel    chan bool
+}
+
+var backends = []syncer.Backend{
+	{
+		Name: "cf_ws_secure_back",
+		Port: 32350,
+	},
+	{
+		Name: "cf_api_back",
+		Port: 32350,
+	},
+	{
+		Name: "port80_back",
+		Port: 32350,
+	},
+	{
+		Name: "ssh_tcp_back",
+		Port: 31180,
+	},
 }
 
 // Wrapping a Native-Client transaction and commit it.
@@ -79,14 +102,13 @@ func (c *HAProxyController) Start() {
 	if err != nil {
 		logger.Panic(err)
 	}
-
-	c.Client, err = api.Init(c.Cfg.Env.CfgDir, c.Cfg.Env.MainCFGFile, c.Cfg.Env.HAProxyBinary, c.Cfg.Env.RuntimeSocket)
+	port, err := strconv.Atoi(c.Cfg.Env.Port)
 	if err != nil {
 		logger.Panic(err)
 	}
-
+	c.Client = api.NewHAProxyClient(c.Cfg.Env.Host, c.Cfg.Env.User, c.Cfg.Env.Password, port)
 	c.initHandlers()
-	c.haproxyStartup()
+	//c.haproxyStartup()
 
 	// Controller PublishService
 	parts := strings.Split(c.OSArgs.PublishService, "/")
@@ -129,12 +151,24 @@ func (c *HAProxyController) Start() {
 		c.ingressChan = make(chan ingress.Sync, chanSize)
 		go ingress.UpdateStatus(c.k8s.API, c.Store, c.OSArgs.IngressClass, c.OSArgs.EmptyIngressClass, c.ingressChan)
 	}
+	//Add syncer
+	s, err := syncer.New(
+		syncer.WithBackends(backends),
+		syncer.WithK8sClient(c.k8s.API),
+		syncer.WithApiClient(c.Client),
+	)
+	if err == nil {
+		logger.Infof("Starting the node syncer")
+		c.SyncChannel, c.DoneChannel, _ = s.Start()
+	}
 }
 
 // Stop handles shutting down HAProxyController
 func (c *HAProxyController) Stop() {
 	logger.Infof("Stopping Ingress Controller")
-	logger.Error(c.haproxyService("stop"))
+	c.SyncChannel <- struct{}{}
+	c.DoneChannel <- true
+	//logger.Error(c.haproxyService("stop"))
 }
 
 // updateHAProxy is the control loop syncing HAProxy configuration
@@ -161,9 +195,12 @@ func (c *HAProxyController) updateHAProxy() {
 	}
 
 	for _, namespace := range c.Store.Namespaces {
-		if !namespace.Relevant {
+		logger.Infof("Name space %s", namespace.Name)
+		if _, ok := c.Store.NamespacesAccess.Whitelist[namespace.Name]; !ok {
+			logger.Infof("Not relevant namespace")
 			continue
 		}
+		logger.Infof("Getting ingress update of length %d ", len(namespace.Ingresses))
 		for _, ingResource := range namespace.Ingresses {
 			i := ingress.New(c.Store, ingResource, c.OSArgs.IngressClass, c.OSArgs.EmptyIngressClass)
 			if i == nil {
@@ -199,7 +236,7 @@ func (c *HAProxyController) updateHAProxy() {
 		c.setToReady()
 	}
 
-	switch {
+	/*switch {
 	case c.restart:
 		if err = c.haproxyService("restart"); err != nil {
 			logger.Error(err)
@@ -212,8 +249,12 @@ func (c *HAProxyController) updateHAProxy() {
 		} else {
 			logger.Info("HAProxy reloaded")
 		}
+	}*/
+	//Update the version
+	version, err := c.Client.GetConfigVersion()
+	if err == nil {
+		c.configVersion = version
 	}
-
 	c.clean(false)
 
 	logger.Trace("HAProxy config sync ended")
@@ -221,7 +262,7 @@ func (c *HAProxyController) updateHAProxy() {
 
 // setToRready exposes readiness endpoint
 func (c *HAProxyController) setToReady() {
-	logger.Panic(c.clientAPIClosure(func() error {
+	/*logger.Panic(c.clientAPIClosure(func() error {
 		return c.Client.FrontendBindEdit("healthz",
 			models.Bind{
 				Name:    "v4",
@@ -242,7 +283,7 @@ func (c *HAProxyController) setToReady() {
 	cm := c.Store.ConfigMaps.Main
 	if cm.Name != "" && !cm.Loaded {
 		logger.Warningf("Main configmap '%s/%s' not found", cm.Namespace, cm.Name)
-	}
+	}*/
 	c.ready = true
 }
 

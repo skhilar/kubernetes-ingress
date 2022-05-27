@@ -1,38 +1,63 @@
 package api
 
 import (
-	"github.com/haproxytech/client-native/v2/models"
-
+	"context"
+	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/client/maps"
+	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/client/server"
 	"github.com/haproxytech/kubernetes-ingress/controller/store"
 	"github.com/haproxytech/kubernetes-ingress/controller/utils"
+	"github.com/haproxytech/models"
 )
 
-func (c *clientNative) ExecuteRaw(command string) (result []string, err error) {
-	return c.nativeAPI.Runtime.ExecuteRaw(command)
+func (c *haProxyClient) ExecuteRaw(command string) (result []string, err error) {
+	return []string{}, nil
 }
 
-func (c *clientNative) SetServerAddr(backendName string, serverName string, ip string, port int) error {
-	return c.nativeAPI.Runtime.SetServerAddr(backendName, serverName, ip, port)
+func (c *haProxyClient) SetServerAddr(backendName string, serverName string, ip string, port int) error {
+	runtimeServer := models.RuntimeServer{Name: serverName, Address: ip, Port: utils.PtrInt64(int64(port))}
+	runtimeWriter := server.NewUpdateRuntimeWriter()
+	runtimeWriter.WithContext(context.Background()).WithName(serverName).WithBackend(backendName).
+		WithRuntimeServer(runtimeServer)
+	_, err := c.client.Server.UpdateRuntimeServer(runtimeWriter)
+	return err
 }
 
-func (c *clientNative) SetServerState(backendName string, serverName string, state string) error {
-	return c.nativeAPI.Runtime.SetServerState(backendName, serverName, state)
+func (c *haProxyClient) SetServerState(backendName string, serverName string, state string) error {
+	runtimeServer := models.RuntimeServer{Name: serverName, AdminState: state}
+	runtimeWriter := server.NewUpdateRuntimeWriter()
+	runtimeWriter.WithContext(context.Background()).WithName(serverName).WithBackend(backendName).
+		WithRuntimeServer(runtimeServer)
+	_, err := c.client.Server.UpdateRuntimeServer(runtimeWriter)
+	return err
 }
 
-func (c *clientNative) SetMapContent(mapFile string, payload string) error {
-	err := c.nativeAPI.Runtime.ClearMap(mapFile, false)
+func (c *haProxyClient) SetMapContent(mapFile string, key string, value string) error {
+	mapsWriter := maps.NewCreateMapFileWriter()
+	mapsWriter.WithContext(context.Background()).WithFileName(mapFile).WithForceSync(true).
+		WithData(models.MapEntry{Key: key, Value: value})
+	_, err := c.client.Maps.CreateMapFile(mapsWriter)
+	return err
+}
+
+func (c *haProxyClient) GetMap(mapFile string) (*models.Map, error) {
+	mapsWriter := maps.NewGetMapFileWriter()
+	mapsWriter.WithContext(context.Background()).WithName(mapFile)
+	maps, err := c.client.Maps.GetMapFile(mapsWriter)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return c.nativeAPI.Runtime.AddMapPayload(mapFile, payload)
+	return maps.Payload, nil
 }
 
-func (c *clientNative) GetMap(mapFile string) (*models.Map, error) {
-	return c.nativeAPI.Runtime.GetMap(mapFile)
+func (c *haProxyClient) DeleteMap(mapFile string) error {
+	mapsWriter := maps.NewDeleteMapFileWriter()
+	mapsWriter.WithName(mapFile).WithContext(context.Background()).WithForceDelete(true).WithForeSync(true)
+	_, err := c.client.Maps.DeleteMapFile(mapsWriter)
+	return err
 }
 
 // SyncBackendSrvs syncs states and addresses of a backend servers with corresponding endpoints.
-func (c *clientNative) SyncBackendSrvs(backend *store.RuntimeBackend, portUpdated bool) error {
+func (c *haProxyClient) SyncBackendSrvs(backend *store.RuntimeBackend, portUpdated bool) error {
 	if backend.Name == "" {
 		return nil
 	}

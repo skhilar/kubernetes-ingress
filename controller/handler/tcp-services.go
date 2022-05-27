@@ -5,12 +5,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/haproxytech/client-native/v2/models"
 	config "github.com/haproxytech/kubernetes-ingress/controller/configuration"
 	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/api"
 	"github.com/haproxytech/kubernetes-ingress/controller/service"
 	"github.com/haproxytech/kubernetes-ingress/controller/store"
 	"github.com/haproxytech/kubernetes-ingress/controller/utils"
+	"github.com/haproxytech/models"
 )
 
 type TCPServices struct {

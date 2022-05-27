@@ -1,7 +1,7 @@
 package global
 
 import (
-	"github.com/haproxytech/client-native/v2/models"
+	"github.com/haproxytech/models"
 
 	"github.com/haproxytech/kubernetes-ingress/controller/annotations/common"
 	"github.com/haproxytech/kubernetes-ingress/controller/store"
@@ -24,13 +24,11 @@ func (a *HardStopAfter) GetName() string {
 func (a *HardStopAfter) Process(k store.K8s, annotations ...map[string]string) error {
 	input := common.GetValue(a.GetName(), annotations...)
 	if input == "" {
-		a.global.HardStopAfter = nil
 		return nil
 	}
-	v, err := utils.ParseTime(input)
+	_, err := utils.ParseTime(input)
 	if err != nil {
 		return err
 	}
-	a.global.HardStopAfter = v
 	return nil
 }
