@@ -71,6 +71,10 @@ var backends = []syncer.Backend{
 		Name: "ssh_tcp_back",
 		Port: 31180,
 	},
+	{
+		Name: "k8sapi_tcp_back",
+		Port: 443,
+	},
 }
 
 // Wrapping a Native-Client transaction and commit it.
@@ -107,6 +111,7 @@ func (c *HAProxyController) Start() {
 		logger.Panic(err)
 	}
 	c.Client = api.NewHAProxyClient(c.Cfg.Env.Host, c.Cfg.Env.User, c.Cfg.Env.Password, port)
+	c.Cfg.Certificates.SetAPIClient(c.Client)
 	c.initHandlers()
 	//c.haproxyStartup()
 

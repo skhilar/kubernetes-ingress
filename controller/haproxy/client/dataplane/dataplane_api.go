@@ -13,6 +13,8 @@ import (
 	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/client/logs"
 	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/client/maps"
 	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/client/server"
+	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/client/storage"
+	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/client/tcprule"
 	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/client/transactions"
 )
 
@@ -31,6 +33,8 @@ func NewApiClient(haProxyHost, user, password string, haProxyPort int) *ApiClien
 	apiClient.LogTarget = logs.NewClient(runtime)
 	apiClient.Server = server.NewClient(runtime)
 	apiClient.Maps = maps.NewClient(runtime)
+	apiClient.Storage = storage.NewClient(runtime)
+	apiClient.TCPRule = tcprule.NewClient(runtime)
 	return apiClient
 }
 
@@ -47,4 +51,6 @@ type ApiClient struct {
 	LogTarget            logs.ClientService
 	Server               server.ClientService
 	Maps                 maps.ClientService
+	Storage              storage.ClientService
+	TCPRule              tcprule.ClientService
 }

@@ -195,9 +195,9 @@ spec:
           containerPort: 1024
         env:
         - name: HAPROXY_HOST
-          value: "xxxxx"
+          value: "13.233.204.154"
         - name: HAPROXY_USER
-          value: "xxxx"
+          value: "admin"
         - name: HAPROXY_PORT
           value: "5555"
         - name: HAPROXY_PASSWORD

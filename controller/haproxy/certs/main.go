@@ -3,6 +3,7 @@ package certs
 import (
 	"errors"
 	"fmt"
+	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/api"
 	"io/ioutil"
 	"os"
 	"path"
@@ -16,6 +17,7 @@ type Certificates struct {
 	frontend map[string]*cert
 	backend  map[string]*cert
 	ca       map[string]*cert
+	client   api.HAProxyClient
 }
 
 type cert struct {
@@ -58,6 +60,10 @@ func NewCertificates(caDir, ftDir, bdDir string) *Certificates {
 		backend:  make(map[string]*cert),
 		ca:       make(map[string]*cert),
 	}
+}
+
+func (c *Certificates) SetAPIClient(client api.HAProxyClient) {
+	c.client = client
 }
 
 func (c *Certificates) HandleTLSSecret(secret *store.Secret, secretType SecretType) (certPath string, err error) {
@@ -105,7 +111,7 @@ func (c *Certificates) HandleTLSSecret(secret *store.Secret, secretType SecretTy
 		inUse:   true,
 		updated: true,
 	}
-	err = writeSecret(secret, crt, privateKeyNull)
+	err = writeSecret(secret, crt, privateKeyNull, c.client)
 	if err != nil {
 		return "", err
 	}
@@ -139,9 +145,9 @@ func (c *Certificates) FrontendCertsEnabled() bool {
 
 // Refresh removes unused certs from HAProxyCertDir
 func (c *Certificates) Refresh() (reload bool) {
-	reload = refreshCerts(c.frontend, frontendCertDir)
-	reload = refreshCerts(c.backend, backendCertDir) || reload
-	reload = refreshCerts(c.ca, caCertDir) || reload
+	reload = refreshCerts(c.frontend, frontendCertDir, c.client)
+	reload = refreshCerts(c.backend, backendCertDir, c.client) || reload
+	reload = refreshCerts(c.ca, caCertDir, c.client) || reload
 	return
 }
 
@@ -157,7 +163,7 @@ func (c *Certificates) Updated() (reload bool) {
 	return reload
 }
 
-func refreshCerts(certs map[string]*cert, certDir string) (reload bool) {
+func refreshCerts(certs map[string]*cert, certDir string, client api.HAProxyClient) (reload bool) {
 	files, err := ioutil.ReadDir(certDir)
 	if err != nil {
 		logger.Error(err)
@@ -174,6 +180,7 @@ func refreshCerts(certs map[string]*cert, certDir string) (reload bool) {
 		if !crtOk || !crt.inUse {
 			logger.Error(os.Remove(path.Join(certDir, filename)))
 			delete(certs, certName)
+			client.DeleteCertificate(certName)
 			reload = true
 			logger.Debug("secret %s removed, reload required", crt.name)
 		}
@@ -181,7 +188,7 @@ func refreshCerts(certs map[string]*cert, certDir string) (reload bool) {
 	return
 }
 
-func writeSecret(secret *store.Secret, c *cert, privateKeyNull bool) (err error) {
+func writeSecret(secret *store.Secret, c *cert, privateKeyNull bool, client api.HAProxyClient) (err error) {
 	var crtValue, keyValue []byte
 	var crtOk, keyOk, pemOk bool
 	var certPath string
@@ -191,7 +198,11 @@ func writeSecret(secret *store.Secret, c *cert, privateKeyNull bool) (err error)
 			return fmt.Errorf("certificate missing in %s/%s", secret.Namespace, secret.Name)
 		}
 		c.path = fmt.Sprintf("%s.pem", c.path)
-		return writeCert(c.path, []byte(""), crtValue)
+		err := writeCert(c.path, []byte(""), crtValue)
+		if err == nil {
+			err = client.CreateCertificate(c.path)
+		}
+		return err
 	}
 	for _, k := range []string{"tls", "rsa", "ecdsa", "dsa"} {
 		keyValue, keyOk = secret.Data[k+".key"]
@@ -207,6 +218,7 @@ func writeSecret(secret *store.Secret, c *cert, privateKeyNull bool) (err error)
 			if err != nil {
 				return err
 			}
+			err = client.CreateCertificate(certPath)
 		}
 	}
 	if !pemOk {

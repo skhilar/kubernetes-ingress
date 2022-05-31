@@ -66,6 +66,8 @@ type HAProxyClient interface {
 	UserListDeleteAll() error
 	UserListExistsByGroup(group string) (bool, error)
 	UserListCreateByGroup(group string, userPasswordMap map[string][]byte) error
+	CreateCertificate(certificate string) error
+	DeleteCertificate(certName string) error
 }
 
 type haProxyClient struct {

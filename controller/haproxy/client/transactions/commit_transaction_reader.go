@@ -45,7 +45,6 @@ func (r *CommitTransactionReader) ReadResponse(response *resty.Response) (interf
 	case 200:
 		transaction := &models.Transaction{}
 		err := json.Unmarshal(response.Body(), transaction)
-		fmt.Println(string(response.Body()))
 		if err != nil {
 			fmt.Println(err)
 			return nil, err
@@ -54,7 +53,6 @@ func (r *CommitTransactionReader) ReadResponse(response *resty.Response) (interf
 	case 202:
 		reloadID := response.Header().Get("Reload-ID")
 		transaction := &models.Transaction{}
-		fmt.Println(string(response.Body()))
 		err := json.Unmarshal(response.Body(), transaction)
 		if err != nil {
 			fmt.Println(err)
@@ -67,8 +65,6 @@ func (r *CommitTransactionReader) ReadResponse(response *resty.Response) (interf
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println(string(response.Body()))
-		fmt.Println(fmt.Sprintf("Error while committing transaction %+v  with status code 400", error))
 		return &CommitTransactionBadRequest{Payload: error}, nil
 	case 404:
 		error := &models.Error{}
@@ -76,7 +72,6 @@ func (r *CommitTransactionReader) ReadResponse(response *resty.Response) (interf
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println(fmt.Sprintf("Error while committing transaction %+v  with status code 400", error))
 		return &CommitTransactionNotFound{Payload: error}, nil
 	case 406:
 		error := &models.Error{}
@@ -84,7 +79,6 @@ func (r *CommitTransactionReader) ReadResponse(response *resty.Response) (interf
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println(fmt.Sprintf("Error while committing transaction %+v  with status code 400", error))
 		return &CommitTransactionNotHandled{Payload: error}, nil
 	default:
 		error := &models.Error{}
@@ -92,7 +86,6 @@ func (r *CommitTransactionReader) ReadResponse(response *resty.Response) (interf
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println(fmt.Sprintf("Error while committing transaction %+v  with status code 400", err))
 		return &CommitTransactionDefault{Payload: error, StatusCode: response.StatusCode()}, nil
 	}
 

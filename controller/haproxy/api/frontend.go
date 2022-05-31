@@ -6,6 +6,7 @@ import (
 	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/client/bind"
 	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/client/frontend"
 	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/client/httprule"
+	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/client/tcprule"
 	"github.com/haproxytech/models"
 )
 
@@ -207,7 +208,18 @@ func (c *haProxyClient) FrontendHTTPResponseRuleCreate(frontend string, rule mod
 }
 
 func (c *haProxyClient) FrontendTCPRequestRuleCreate(frontend string, rule models.TCPRequestRule, ingressACL string) error {
-	return nil
+	if ingressACL != "" {
+		rule.Cond = "if"
+		rule.CondTest = fmt.Sprintf("%s %s", ingressACL, rule.CondTest)
+	}
+	tcpRuleWriter := tcprule.NewCreateTCPRequestRuleWriter()
+	tcpRuleWriter.WithContext(context.Background()).WithTransactionID(c.activeTransaction).
+		WithParentName(frontend).WithParentType("frontend").WithTCPRequestRule(rule)
+	_, _, err := c.client.TCPRule.CreateTCPRequestRule(tcpRuleWriter)
+	if err == nil {
+		c.activeTransactionHasChanges = true
+	}
+	return err
 }
 
 func (c *haProxyClient) FrontendRuleDeleteAll(frontend string) {
@@ -245,5 +257,22 @@ func (c *haProxyClient) FrontendRuleDeleteAll(frontend string) {
 			return
 		}
 	}
-	c.activeTransactionHasChanges = true
+	//Delete TCP rules
+	tcpRulesWriter := tcprule.NewGetTCPRulesWriter()
+	tcpRulesWriter.WithParentType("frontend").WithParentName(frontend).
+		WithTransactionID(c.activeTransaction).WithContext(context.Background())
+	tcpRules, err := c.client.TCPRule.GetTCPRequestRules(tcpRulesWriter)
+	if err != nil {
+		return
+	}
+
+	for _, rule := range *tcpRules.Payload {
+		deleteTcpRuleWriter := tcprule.NewDeleteTCPRequestRuleWriter()
+		deleteTcpRuleWriter.WithContext(context.Background()).WithTransactionID(c.activeTransaction).
+			WithParentName(frontend).WithParentType("frontend").WithIndex(*rule.Index)
+		_, _, err := c.client.TCPRule.DeleteTCPRequestRule(deleteTcpRuleWriter)
+		if err != nil {
+			return
+		}
+	}
 }
