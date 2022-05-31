@@ -54,7 +54,9 @@ type HAProxyController struct {
 	DoneChannel    chan bool
 }
 
-var backends = []syncer.Backend{
+var backends []syncer.Backend
+
+var defaultBackends = []syncer.Backend{
 	{
 		Name: "cf_ws_secure_back",
 		Port: 32350,
@@ -157,6 +159,13 @@ func (c *HAProxyController) Start() {
 		go ingress.UpdateStatus(c.k8s.API, c.Store, c.OSArgs.IngressClass, c.OSArgs.EmptyIngressClass, c.ingressChan)
 	}
 	//Add syncer
+	if len(c.OSArgs.SyncBackend) > 0 {
+		for _, b := range c.OSArgs.SyncBackend {
+			backends = append(backends, syncer.Backend{Name: b.Name, Port: b.Port})
+		}
+	} else {
+		backends = defaultBackends
+	}
 	s, err := syncer.New(
 		syncer.WithBackends(backends),
 		syncer.WithK8sClient(c.k8s.API),

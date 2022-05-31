@@ -35,10 +35,9 @@ func (w *GetServersWriter) WriteToRequest(request *resty.Request) (*resty.Respon
 	if w.Backend == "" {
 		return nil, errors.New("backend must be set")
 	}
-	if w.TransactionID == "" {
-		return nil, errors.New("transaction must be set")
+	if w.TransactionID != "" {
+		request.SetQueryParam("transaction_id", w.TransactionID)
 	}
-	request.SetQueryParam("transaction_id", w.TransactionID)
 	request.SetPathParam("backend", w.Backend)
 	return request.Send()
 }

@@ -2,7 +2,6 @@ package backend
 
 import (
 	"context"
-	"errors"
 	"github.com/go-resty/resty/v2"
 	"github.com/haproxytech/models"
 )
@@ -33,10 +32,9 @@ func (w *CreateBackendWriter) WithData(backend models.Backend) *CreateBackendWri
 }
 
 func (w *CreateBackendWriter) WriteToRequest(request *resty.Request) (*resty.Response, error) {
-	if w.TransactionID == "" {
-		return nil, errors.New("transaction can not be blank")
+	if w.TransactionID != "" {
+		request.SetQueryParam("transaction_id", w.TransactionID)
 	}
-	request.SetQueryParam("transaction_id", w.TransactionID)
 	request.SetBody(w.Backend)
 	return request.Send()
 }

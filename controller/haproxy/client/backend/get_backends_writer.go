@@ -2,7 +2,6 @@ package backend
 
 import (
 	"context"
-	"errors"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -26,9 +25,8 @@ func (w *GetBackendsWriter) WithTransactionID(transactionID string) *GetBackends
 }
 
 func (w *GetBackendsWriter) WriteToRequest(request *resty.Request) (*resty.Response, error) {
-	if w.TransactionID == "" {
-		return nil, errors.New("transaction should be set")
+	if w.TransactionID != "" {
+		request.SetQueryParam("transaction_id", w.TransactionID)
 	}
-	request.SetQueryParam("transaction_id", w.TransactionID)
 	return request.Send()
 }
