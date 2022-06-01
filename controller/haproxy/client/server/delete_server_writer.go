@@ -49,6 +49,6 @@ func (w *DeleteServerWriter) WriteToRequest(request *resty.Request) (*resty.Resp
 	}
 	request.SetPathParam("name", w.Name)
 	request.SetQueryParam("transaction_id", w.TransactionID)
-	request.SetPathParam("backend", w.Backend)
+	request.SetQueryParam("backend", w.Backend)
 	return request.Send()
 }

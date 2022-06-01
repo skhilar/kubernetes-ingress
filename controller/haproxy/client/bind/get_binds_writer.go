@@ -32,13 +32,12 @@ func (w *GetBindsWriter) WithContext(context context.Context) *GetBindsWriter {
 }
 
 func (w *GetBindsWriter) WriteToRequest(request *resty.Request) (*resty.Response, error) {
-	if w.TransactionID == "" {
-		return nil, errors.New("transaction must be set")
+	if w.TransactionID != "" {
+		request.SetQueryParam("transaction_id", w.TransactionID)
 	}
 	if w.Frontend == "" {
 		return nil, errors.New("frontend must be set")
 	}
-	request.SetQueryParam("transaction_id", w.TransactionID)
 	request.SetQueryParam("frontend", w.Frontend)
 	return request.Send()
 }

@@ -8,7 +8,7 @@ import (
 )
 
 type GetLogTargetWriter struct {
-	Index         int
+	Index         int64
 	ParentName    string
 	ParentType    string
 	TransactionID string
@@ -24,7 +24,7 @@ func (w *GetLogTargetWriter) WithParentName(parentName string) *GetLogTargetWrit
 	return w
 }
 
-func (w *GetLogTargetWriter) WithIndex(index int) *GetLogTargetWriter {
+func (w *GetLogTargetWriter) WithIndex(index int64) *GetLogTargetWriter {
 	w.Index = index
 	return w
 }
@@ -54,12 +54,11 @@ func (w *GetLogTargetWriter) WriteToRequest(request *resty.Request) (*resty.Resp
 	if w.ParentType != "frontend" && w.ParentType != "backend" && w.ParentType != "defaults" && w.ParentType != "global" {
 		return nil, errors.New("parent type should be frontend or backend or defaults or global")
 	}
-	if w.TransactionID == "" {
-		return nil, errors.New("transaction should be set")
+	if w.TransactionID != "" {
+		request.SetQueryParam("transaction_id", w.TransactionID)
 	}
 	request.SetQueryParam("parent_name", w.ParentName)
 	request.SetQueryParam("parent_type", w.ParentType)
-	request.SetQueryParam("transaction_id", w.TransactionID)
 	request.SetPathParam("index", fmt.Sprintf("%d", w.Index))
 	return request.Send()
 }

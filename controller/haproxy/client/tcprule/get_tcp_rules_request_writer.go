@@ -39,6 +39,8 @@ func (w *GetTCPRulesWriter) WithContext(context context.Context) *GetTCPRulesWri
 func (w *GetTCPRulesWriter) WriteToRequest(request *resty.Request) (*resty.Response, error) {
 	request.SetQueryParam("parent_name", w.ParentName)
 	request.SetQueryParam("parent_type", w.ParentType)
-	request.SetQueryParam("transaction_id", w.TransactionID)
+	if w.TransactionID != "" {
+		request.SetQueryParam("transaction_id", w.TransactionID)
+	}
 	return request.Send()
 }

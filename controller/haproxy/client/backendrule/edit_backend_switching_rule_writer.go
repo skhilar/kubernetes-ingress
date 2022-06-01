@@ -3,6 +3,7 @@ package backendrule
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/go-resty/resty/v2"
 	"github.com/haproxytech/models"
 )
@@ -10,7 +11,7 @@ import (
 type EditBackendSwitchingRuleWriter struct {
 	Frontend             string
 	TransactionID        string
-	Index                int
+	Index                int64
 	BackendSwitchingRule models.BackendSwitchingRule
 	Context              context.Context
 }
@@ -29,7 +30,7 @@ func (w *EditBackendSwitchingRuleWriter) WithTransactionID(transactionID string)
 	return w
 }
 
-func (w *EditBackendSwitchingRuleWriter) WithIndex(index int) *EditBackendSwitchingRuleWriter {
+func (w *EditBackendSwitchingRuleWriter) WithIndex(index int64) *EditBackendSwitchingRuleWriter {
 	w.Index = index
 	return w
 }
@@ -48,6 +49,7 @@ func (w *EditBackendSwitchingRuleWriter) WriteToRequest(request *resty.Request) 
 	}
 	request.SetQueryParam("transaction_id", w.TransactionID)
 	request.SetQueryParam("frontend", w.Frontend)
+	request.SetPathParam("index", fmt.Sprintf("%d", w.Index))
 	request.SetBody(w.BackendSwitchingRule)
 	return request.Send()
 }

@@ -8,7 +8,7 @@ import (
 )
 
 type GetHttpRequestRuleWriter struct {
-	Index         int
+	Index         int64
 	ParentName    string
 	ParentType    string
 	TransactionID string
@@ -19,7 +19,7 @@ func NewGetHttpRequestRuleWriter() *GetHttpRequestRuleWriter {
 	return &GetHttpRequestRuleWriter{}
 }
 
-func (w *GetHttpRequestRuleWriter) WithIndex(index int) *GetHttpRequestRuleWriter {
+func (w *GetHttpRequestRuleWriter) WithIndex(index int64) *GetHttpRequestRuleWriter {
 	w.Index = index
 	return w
 }
@@ -45,8 +45,8 @@ func (w *GetHttpRequestRuleWriter) WithContext(context context.Context) *GetHttp
 }
 
 func (w *GetHttpRequestRuleWriter) WriteToRequest(request *resty.Request) (*resty.Response, error) {
-	if w.TransactionID == "" {
-		return nil, errors.New("transaction should be set")
+	if w.TransactionID != "" {
+		request.SetQueryParam("transaction_id", w.TransactionID)
 	}
 	if w.ParentType == "" {
 		return nil, errors.New("parent type should be provided")
@@ -59,7 +59,6 @@ func (w *GetHttpRequestRuleWriter) WriteToRequest(request *resty.Request) (*rest
 	}
 	request.SetQueryParam("parent_name", w.ParentName)
 	request.SetQueryParam("parent_type", w.ParentType)
-	request.SetQueryParam("transaction_id", w.TransactionID)
 	request.SetPathParam("index", fmt.Sprintf("%d", w.Index))
 	return request.Send()
 }

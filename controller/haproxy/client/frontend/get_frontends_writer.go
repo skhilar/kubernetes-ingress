@@ -2,7 +2,6 @@ package frontend
 
 import (
 	"context"
-	"errors"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -26,9 +25,8 @@ func (w *GetFrontendsWriter) WithContext(context context.Context) *GetFrontendsW
 }
 
 func (w *GetFrontendsWriter) WriteToRequest(request *resty.Request) (*resty.Response, error) {
-	if w.TransactionID == "" {
-		return nil, errors.New("transactions must be set")
+	if w.TransactionID != "" {
+		request.SetQueryParam("transaction_id", w.TransactionID)
 	}
-	request.SetQueryParam("transaction_id", w.TransactionID)
 	return request.Send()
 }

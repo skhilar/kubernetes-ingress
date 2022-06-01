@@ -45,8 +45,8 @@ func (w *GetHttpResponseRuleWriter) WithContext(context context.Context) *GetHtt
 }
 
 func (w *GetHttpResponseRuleWriter) WriteToRequest(request *resty.Request) (*resty.Response, error) {
-	if w.TransactionID == "" {
-		return nil, errors.New("transaction should be set")
+	if w.TransactionID != "" {
+		request.SetQueryParam("transaction_id", w.TransactionID)
 	}
 	if w.ParentType == "" {
 		return nil, errors.New("parent type should be provided")
@@ -59,7 +59,6 @@ func (w *GetHttpResponseRuleWriter) WriteToRequest(request *resty.Request) (*res
 	}
 	request.SetQueryParam("parent_name", w.ParentName)
 	request.SetQueryParam("parent_type", w.ParentType)
-	request.SetQueryParam("transaction_id", w.TransactionID)
 	request.SetPathParam("index", fmt.Sprintf("%d", w.Index))
 	return request.Send()
 }

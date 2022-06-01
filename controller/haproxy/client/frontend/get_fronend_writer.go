@@ -35,10 +35,9 @@ func (w *GetFrontendWriter) WriteToRequest(request *resty.Request) (*resty.Respo
 	if w.Name == "" {
 		return nil, errors.New("name must be set")
 	}
-	if w.TransactionID == "" {
-		return nil, errors.New("transaction must be set")
+	if w.TransactionID != "" {
+		request.SetQueryParam("transaction_id", w.TransactionID)
 	}
 	request.SetPathParam("name", w.Name)
-	request.SetQueryParam("transaction_id", w.TransactionID)
 	return request.Send()
 }

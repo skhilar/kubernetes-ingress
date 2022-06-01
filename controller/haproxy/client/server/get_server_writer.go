@@ -48,6 +48,6 @@ func (w *GetServerWriter) WriteToRequest(request *resty.Request) (*resty.Respons
 	if w.TransactionID != "" {
 		request.SetQueryParam("transaction_id", w.TransactionID)
 	}
-	request.SetPathParam("backend", w.Backend)
+	request.SetQueryParam("backend", w.Backend)
 	return request.Send()
 }

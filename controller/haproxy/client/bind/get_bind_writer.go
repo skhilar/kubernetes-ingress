@@ -41,13 +41,12 @@ func (w *GetBindWriter) WriteToRequest(request *resty.Request) (*resty.Response,
 	if w.Name == "" {
 		return nil, errors.New("name must be provided")
 	}
-	if w.TransactionID == "" {
-		return nil, errors.New("transaction must be set")
+	if w.TransactionID != "" {
+		request.SetQueryParam("transaction_id", w.TransactionID)
 	}
 	if w.Frontend == "" {
 		return nil, errors.New("frontend must be provided")
 	}
-	request.SetQueryParam("transaction_id", w.TransactionID)
 	request.SetQueryParam("frontend", w.Frontend)
 	request.SetPathParam("name", w.Name)
 	return request.Send()

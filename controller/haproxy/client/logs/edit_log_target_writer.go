@@ -9,7 +9,7 @@ import (
 )
 
 type EditLogTargetWriter struct {
-	Index         int
+	Index         int64
 	ParentName    string
 	ParentType    string
 	TransactionID string
@@ -26,7 +26,7 @@ func (w *EditLogTargetWriter) WithParentName(parentName string) *EditLogTargetWr
 	return w
 }
 
-func (w *EditLogTargetWriter) WithIndex(index int) *EditLogTargetWriter {
+func (w *EditLogTargetWriter) WithIndex(index int64) *EditLogTargetWriter {
 	w.Index = index
 	return w
 }

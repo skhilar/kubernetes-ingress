@@ -47,11 +47,10 @@ func (w *GetLogTargetsWriter) WriteToRequest(request *resty.Request) (*resty.Res
 	if w.ParentType != "frontend" && w.ParentType != "backend" && w.ParentType != "defaults" && w.ParentType != "global" {
 		return nil, errors.New("parent type should be frontend or backend or defaults or global")
 	}
-	if w.TransactionID == "" {
-		return nil, errors.New("transaction should be set")
+	if w.TransactionID != "" {
+		request.SetQueryParam("transaction_id", w.TransactionID)
 	}
 	request.SetQueryParam("parent_name", w.ParentName)
 	request.SetQueryParam("parent_type", w.ParentType)
-	request.SetQueryParam("transaction_id", w.TransactionID)
 	return request.Send()
 }
