@@ -60,10 +60,21 @@ func (h HTTPBind) Update(k store.K8s, cfg *config.ControllerCfg, api api.HAProxy
 	}*/
 	for ftName, ftPort := range frontends {
 		for proto, addr := range protos {
-			bind := models.Bind{
-				Name:    proto,
-				Address: addr,
-				Port:    utils.PtrInt64(ftPort),
+			var bind models.Bind
+			if ftName == "https" {
+				bind = models.Bind{
+					Name:           proto,
+					Address:        addr,
+					Port:           utils.PtrInt64(ftPort),
+					SslCertificate: cfg.Env.CertFile,
+					Ssl:            true,
+				}
+			} else {
+				bind = models.Bind{
+					Name:    proto,
+					Address: addr,
+					Port:    utils.PtrInt64(ftPort),
+				}
 			}
 			if err = api.FrontendBindEdit(ftName, bind); err != nil {
 				errors.Add(api.FrontendBindCreate(ftName, bind))

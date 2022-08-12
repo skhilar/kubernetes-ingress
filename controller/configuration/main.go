@@ -26,41 +26,44 @@ import (
 )
 
 type ControllerCfg struct {
-	MapFiles        *maps.MapFiles
-	HAProxyRules    *rules.SectionRules
-	Certificates    *certs.Certificates
-	ActiveBackends  map[string]struct{}
-	RateLimitTables []string
-	FrontHTTP       string
-	FrontHTTPS      string
-	FrontSSL        string
-	BackSSL         string
-	Env             Env
-	HTTPS           bool
-	SSLPassthrough  bool
+	MapFiles         *maps.MapFiles
+	HAProxyRules     *rules.SectionRules
+	Certificates     *certs.Certificates
+	ActiveBackends   map[string]struct{}
+	RateLimitTables  []string
+	FrontHTTP        string
+	FrontHTTPS       string
+	FrontSSL         string
+	BackSSL          string
+	Env              Env
+	HTTPS            bool
+	SSLPassthrough   bool
+	ExcludedBackends map[string]struct{}
 }
 
 // Directories and files required by haproxy and controller
 type Env struct {
-	HAProxyBinary   string
-	RuntimeSocket   string
-	PIDFile         string
-	MainCFGFile     string
-	AuxCFGFile      string
-	CfgDir          string
-	RuntimeDir      string
-	CertDir         string
-	FrontendCertDir string
-	BackendCertDir  string
-	CaCertDir       string
-	StateDir        string
-	MapDir          string
-	PatternDir      string
-	ErrFileDir      string
-	Host            string
-	Port            string
-	User            string
-	Password        string
+	HAProxyBinary         string
+	RuntimeSocket         string
+	PIDFile               string
+	MainCFGFile           string
+	AuxCFGFile            string
+	CfgDir                string
+	RuntimeDir            string
+	CertDir               string
+	FrontendCertDir       string
+	BackendCertDir        string
+	CaCertDir             string
+	StateDir              string
+	MapDir                string
+	PatternDir            string
+	ErrFileDir            string
+	Host                  string
+	Port                  string
+	User                  string
+	Password              string
+	AllNameSpaceWatchList bool
+	CertFile              string
 }
 
 // Init initialize configuration

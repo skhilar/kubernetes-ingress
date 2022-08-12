@@ -54,11 +54,15 @@ func (h Refresh) clearBackends(api api.HAProxyClient, cfg *config.ControllerCfg)
 	}
 	for _, backend := range allBackends {
 		if _, ok := cfg.ActiveBackends[backend.Name]; !ok {
-			logger.Debugf("Deleting backend '%s'", backend.Name)
-			if err := api.BackendDelete(backend.Name); err != nil {
-				logger.Panic(err)
+			//Delete only if it is not excluded and not maintained by ingress
+			if _, ok = cfg.ExcludedBackends[backend.Name]; !ok {
+				logger.Debugf("Deleting backend '%s'", backend.Name)
+				if err := api.BackendDelete(backend.Name); err != nil {
+					logger.Panic(err)
+				}
+				annotations.RemoveBackendCfgSnippet(backend.Name)
 			}
-			annotations.RemoveBackendCfgSnippet(backend.Name)
+
 		}
 	}
 }

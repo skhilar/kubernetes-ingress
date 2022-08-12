@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	//nolint:gosec
@@ -132,19 +133,36 @@ func main() {
 	hostname, err := os.Hostname()
 	logger.Error(err)
 	logger.Printf("Running on %s", hostname)
+	runtimeSocket := os.Getenv("HAPROXY_RUNTIME_SOCKET")
+	if runtimeSocket == "" {
+		runtimeSocket = "/var/run/haproxy/admin.sock"
+	}
 
+	allNamespaceWatchList := true
+	namespaceWatchList := os.Getenv("HAPROXY_CONTROLLER_ALL_NAMESPACE_WATCH")
+	if len(namespaceWatchList) > 0 {
+		allNamespaceWatchList, _ = strconv.ParseBool(namespaceWatchList)
+	}
+	certFile := os.Getenv("HAPROXY_CERT_FILE")
+	if len(certFile) == 0 {
+		certFile = "/etc/haproxy/ssl/ssl-certs.pem"
+	}
 	cfg := config.ControllerCfg{
 		Env: config.Env{
-			HAProxyBinary: "/usr/local/sbin/haproxy",
-			MainCFGFile:   "/etc/haproxy/haproxy.cfg",
-			CfgDir:        "/etc/haproxy/",
-			RuntimeDir:    "/var/run",
-			StateDir:      "/var/state/haproxy/",
-			Host:          os.Getenv("HAPROXY_HOST"),
-			Port:          os.Getenv("HAPROXY_PORT"),
-			User:          os.Getenv("HAPROXY_USER"),
-			Password:      os.Getenv("HAPROXY_PASSWORD"),
+			HAProxyBinary:         "/usr/local/sbin/haproxy",
+			MainCFGFile:           "/etc/haproxy/haproxy.cfg",
+			CfgDir:                "/etc/haproxy/",
+			RuntimeDir:            "/var/run",
+			StateDir:              "/var/state/haproxy/",
+			Host:                  os.Getenv("HAPROXY_HOST"),
+			Port:                  os.Getenv("HAPROXY_PORT"),
+			User:                  os.Getenv("HAPROXY_USER"),
+			Password:              os.Getenv("HAPROXY_PASSWORD"),
+			RuntimeSocket:         runtimeSocket,
+			AllNameSpaceWatchList: allNamespaceWatchList,
+			CertFile:              certFile,
 		},
+		ExcludedBackends: map[string]struct{}{},
 	}
 	if osArgs.External {
 		cfg = setupHAProxyEnv(osArgs)
@@ -178,6 +196,10 @@ func main() {
 	}
 	for _, namespace := range osArgs.NamespaceBlacklist {
 		s.NamespacesAccess.Blacklist[namespace] = struct{}{}
+	}
+	//Excluded backend
+	for _, backend := range osArgs.ExcludeBackends {
+		cfg.ExcludedBackends[backend] = struct{}{}
 	}
 	controller.Store = s
 	controller.Start()

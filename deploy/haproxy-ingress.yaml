@@ -174,6 +174,11 @@ spec:
           - --http-bind-port=80
           - --https-bind-port=443
           - --log=trace
+          - --exclude-backends=cf_ws_secure_back
+          - --exclude-backends=cf_api_back
+          - --exclude-backends=port80_back
+          - --exclude-backends=ssh_tcp_back
+          - --exclude-backends=k8sapi_tcp_back
         securityContext:
           runAsUser:  1000
           runAsGroup: 1000

@@ -2,6 +2,7 @@ package syncer
 
 import (
 	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/api"
+	"github.com/haproxytech/kubernetes-ingress/controller/store"
 	"github.com/haproxytech/kubernetes-ingress/controller/utils"
 	"github.com/haproxytech/models"
 	core "k8s.io/api/core/v1"
@@ -15,32 +16,38 @@ import (
 )
 
 const (
-	labelSelector = "node-role.kubernetes.io/node="
-	addressType   = "InternalIP"
+	labelSelector       = "node-role.kubernetes.io/node="
+	masterLabelSelector = "node-role.kubernetes.io/master="
+	addressType         = "InternalIP"
 )
 
 var logger = utils.GetLogger()
 
 type Syncer struct {
-	labelSelector string
-	addressType   string
-	client        *kubernetes.Clientset
-	apiClient     api.HAProxyClient
-	factory       informers.SharedInformerFactory
-	nodeSelector  labels.Selector
-	lister        listers.NodeLister
-	backends      []Backend
+	labelSelector       string
+	masterLabelSelector string
+	addressType         string
+	client              *kubernetes.Clientset
+	apiClient           api.HAProxyClient
+	factory             informers.SharedInformerFactory
+	nodeSelector        labels.Selector
+	masterNodeSelector  labels.Selector
+	lister              listers.NodeLister
+	backends            []Backend
+	store               store.K8s
 }
 
 type Backend struct {
-	Name string
-	Port int
+	Name                string
+	IsMasterNodeBackend bool
+	Port                int
 }
 
 func New(opts ...OptionFunc) (*Syncer, error) {
 	s := &Syncer{
-		labelSelector: labelSelector,
-		addressType:   addressType,
+		labelSelector:       labelSelector,
+		masterLabelSelector: masterLabelSelector,
+		addressType:         addressType,
 	}
 	for _, o := range opts {
 		if err := o(s); err != nil {
@@ -56,6 +63,14 @@ func New(opts ...OptionFunc) (*Syncer, error) {
 			return nil, err
 		} else {
 			s.nodeSelector = selector
+		}
+	}
+	if s.masterLabelSelector != "" {
+		selector, err := labels.Parse(s.masterLabelSelector)
+		if err != nil {
+			return nil, err
+		} else {
+			s.masterNodeSelector = selector
 		}
 	}
 	return s, nil
@@ -104,16 +119,44 @@ func (s *Syncer) resync() error {
 	}
 	logger.Infof("%s --> Found %d nodes in the cluster (filtered)", time.Now().Format(time.RFC3339), len(nodes))
 	for _, node := range nodes {
-		logger.Infof("%v %s: %v", node.Name, s.addressType, s.addressByAddressType(node))
+		address := s.addressByAddressType(node)
+		//Adding the node
+		_, ok := s.store.Nodes[node.Name]
+		if !ok {
+			logger.Infof("Added node name %s ", node.Name)
+			s.store.Nodes[node.Name] = node
+		}
+		logger.Infof("%v %s: %v", node.Name, s.addressType, address)
 	}
 	// HAProxy Backends
 	for _, be := range s.backends {
-		_, err := s.apiClient.BackendGet(be.Name)
-		if err != nil {
-			logger.Infof("Error fetching backend %s. Skipping", be.Name)
-			continue
+		if !be.IsMasterNodeBackend {
+			_, err := s.apiClient.BackendGet(be.Name)
+			if err != nil {
+				logger.Infof("Error fetching backend %s. Skipping", be.Name)
+				continue
+			}
+			_ = s.syncBackend(be, nodes)
 		}
-		_ = s.syncBackend(be, nodes)
+	}
+	masterNodes, err := s.lister.List(s.masterNodeSelector)
+	logger.Infof("%s --> Master node Found %d nodes in the cluster (filtered)", time.Now().Format(time.RFC3339), len(masterNodes))
+	for _, node := range masterNodes {
+		logger.Infof("%v %s: %v", node.Name, s.addressType, s.addressByAddressType(node))
+	}
+
+	if err != nil {
+		return err
+	}
+	for _, be := range s.backends {
+		if be.IsMasterNodeBackend {
+			_, err := s.apiClient.BackendGet(be.Name)
+			if err != nil {
+				logger.Infof("Error fetching backend %s. Skipping", be.Name)
+				continue
+			}
+			_ = s.syncBackend(be, masterNodes)
+		}
 	}
 	return nil
 }

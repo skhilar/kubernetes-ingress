@@ -51,7 +51,7 @@ func (c *haProxyClient) GetMap(mapFile string) (*models.Map, error) {
 
 func (c *haProxyClient) DeleteMap(mapFile string) error {
 	mapsWriter := maps.NewDeleteMapFileWriter()
-	mapsWriter.WithName(mapFile).WithContext(context.Background()).WithForceDelete(true).WithForeSync(true)
+	mapsWriter.WithName(mapFile).WithContext(context.Background()).WithForceDelete(false).WithForeSync(true)
 	_, err := c.client.Maps.DeleteMapFile(mapsWriter)
 	return err
 }

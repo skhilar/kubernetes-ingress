@@ -11,6 +11,9 @@ func SetGlobal(global *models.Global, logTargets *models.LogTargets, env Env) {
 	// Enforced values
 	global.MasterWorker = true
 	global.Pidfile = env.PIDFile
+	global.Chroot = "/var/lib/haproxy"
+	global.User = "haproxy"
+	global.Group = "haproxy"
 	//global.Localpeer = "local"
 	//global.ServerStateBase = env.StateDir
 	//global.ServerStateFile = "global"
@@ -96,7 +99,8 @@ func SetDefaults(defaults *models.Defaults) {
 	if defaults.HTTPKeepAliveTimeout == nil {
 		defaults.HTTPKeepAliveTimeout = utils.PtrInt64(60000) // 1m
 	}
-	if defaults.LogFormat == "" {
+	defaults.Mode = "http"
+	/*if defaults.LogFormat == "" {
 		defaults.LogFormat = "'%ci:%cp [%tr] %ft %b/%s %TR/%Tw/%Tc/%Tr/%Ta %ST %B %CC %CS %tsc %ac/%fc/%bc/%sc/%rc %sq/%bq %hr %hs \"%HM %[var(txn.base)] %HV\"'"
-	}
+	}*/
 }

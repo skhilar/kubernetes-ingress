@@ -90,7 +90,7 @@ func (k *K8s) EventEndpoints(ns *Namespace, data *Endpoints, syncHAproxySrvs fun
 		newBackend := &RuntimeBackend{Endpoints: portEndpoints}
 		backend, ok := ns.HAProxyRuntime[data.Service][portName]
 		if ok {
-			portUpdated := (newBackend.Endpoints.Port != backend.Endpoints.Port)
+			portUpdated := newBackend.Endpoints.Port != backend.Endpoints.Port
 			newBackend.HAProxySrvs = backend.HAProxySrvs
 			newBackend.Name = backend.Name
 			logger.Warning(syncHAproxySrvs(newBackend, portUpdated))

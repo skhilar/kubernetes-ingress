@@ -24,6 +24,7 @@ type ServicePort struct {
 	Protocol string
 	Port     int64
 	Status   Status
+	NodePort int64
 }
 
 type HAProxySrv struct {

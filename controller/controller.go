@@ -58,24 +58,29 @@ var backends []syncer.Backend
 
 var defaultBackends = []syncer.Backend{
 	{
-		Name: "cf_ws_secure_back",
-		Port: 32350,
+		Name:                "cf_ws_secure_back",
+		IsMasterNodeBackend: false,
+		Port:                32350,
 	},
 	{
-		Name: "cf_api_back",
-		Port: 32350,
+		Name:                "cf_api_back",
+		IsMasterNodeBackend: false,
+		Port:                32350,
 	},
 	{
-		Name: "port80_back",
-		Port: 32350,
+		Name:                "port80_back",
+		IsMasterNodeBackend: false,
+		Port:                32350,
 	},
 	{
-		Name: "ssh_tcp_back",
-		Port: 31180,
+		Name:                "ssh_tcp_back",
+		IsMasterNodeBackend: false,
+		Port:                31180,
 	},
 	{
-		Name: "k8sapi_tcp_back",
-		Port: 443,
+		Name:                "k8sapi_tcp_back",
+		IsMasterNodeBackend: true,
+		Port:                443,
 	},
 }
 
@@ -161,7 +166,7 @@ func (c *HAProxyController) Start() {
 	//Add syncer
 	if len(c.OSArgs.SyncBackend) > 0 {
 		for _, b := range c.OSArgs.SyncBackend {
-			backends = append(backends, syncer.Backend{Name: b.Name, Port: b.Port})
+			backends = append(backends, syncer.Backend{Name: b.Name, IsMasterNodeBackend: b.IsMasterNodeBackend, Port: b.Port})
 		}
 	} else {
 		backends = defaultBackends
@@ -170,6 +175,7 @@ func (c *HAProxyController) Start() {
 		syncer.WithBackends(backends),
 		syncer.WithK8sClient(c.k8s.API),
 		syncer.WithApiClient(c.Client),
+		syncer.WithK8sStore(c.Store),
 	)
 	if err == nil {
 		logger.Infof("Starting the node syncer")
@@ -210,7 +216,16 @@ func (c *HAProxyController) updateHAProxy() {
 
 	for _, namespace := range c.Store.Namespaces {
 		logger.Infof("Name space %s", namespace.Name)
-		if _, ok := c.Store.NamespacesAccess.Whitelist[namespace.Name]; !ok {
+		isOk := true
+		if c.Cfg.Env.AllNameSpaceWatchList {
+			_, ok := c.Store.NamespacesAccess.Blacklist[namespace.Name]
+			if ok {
+				isOk = false // if blacklisted invert the flag
+			}
+		} else {
+			_, isOk = c.Store.NamespacesAccess.Whitelist[namespace.Name]
+		}
+		if !isOk {
 			logger.Infof("Not relevant namespace")
 			continue
 		}

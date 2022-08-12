@@ -134,12 +134,17 @@ func (m MapFiles) Refresh(client api.HAProxyClient) (reload bool) {
 		logger.Error(f.Sync())
 		reload = true
 		logger.Debugf("Map file '%s' updated, reload required", name)
+		//Delete the entry  before make entry
+		err = client.DeleteMap(string(name))
+		if err != nil {
+			logger.Errorf("not able to delete entry from map file %s", err)
+		}
 		mapEntries := mapFile.getMapEntry()
 		for _, mapEntry := range mapEntries {
 			logger.Infof("setting for file %s key %s value %s", name, mapEntry.Key, mapEntry.Value)
 			err := client.SetMapContent(string(name), mapEntry.Key, mapEntry.Value)
 			if err != nil {
-				logger.Debugf("not able to create map file %s", err)
+				logger.Infof("not able to create map file %s", err)
 			}
 			reload = true
 		}

@@ -68,6 +68,7 @@ type HAProxyClient interface {
 	UserListCreateByGroup(group string, userPasswordMap map[string][]byte) error
 	CreateCertificate(certificate string) error
 	DeleteCertificate(certName string) error
+	DeleteAllTransactions() error
 }
 
 type haProxyClient struct {
@@ -128,4 +129,20 @@ func (c *haProxyClient) APIDisposeTransaction() {
 
 func (c *haProxyClient) SetAuxCfgFile(auxCfgFile string) {
 	//NA
+}
+
+func (c *haProxyClient) DeleteAllTransactions() error {
+	trs, err := c.client.Transaction.GetTransactions(transactions.NewGetTransactionsWriterWithContext("", context.Background()))
+	if err != nil {
+		return err
+	}
+	for _, tr := range trs.Payload {
+		if tr.Status == "in_progress" {
+			transactionDeleteWriter := transactions.NewDeleteTransactionWriter()
+			transactionDeleteWriter.WithTransactionID(tr.ID)
+			transactionDeleteWriter.WithContext(context.Background())
+			c.client.Transaction.DeleteTransaction(transactionDeleteWriter)
+		}
+	}
+	return nil
 }

@@ -470,6 +470,7 @@ func (k *K8s) EventsServices(channel chan SyncDataEvent, ingressChan chan ingres
 					Name:     sp.Name,
 					Protocol: string(sp.Protocol),
 					Port:     int64(sp.Port),
+					NodePort: int64(sp.NodePort),
 				})
 			}
 			k.Logger.Tracef("%s %s: %s", SERVICE, item.Status, item.Name)
@@ -541,6 +542,7 @@ func (k *K8s) EventsServices(channel chan SyncDataEvent, ingressChan chan ingres
 					Name:     sp.Name,
 					Protocol: string(sp.Protocol),
 					Port:     int64(sp.Port),
+					NodePort: int64(sp.NodePort),
 				})
 			}
 

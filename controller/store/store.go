@@ -16,6 +16,7 @@ package store
 
 import (
 	"fmt"
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/haproxytech/models"
 
@@ -28,6 +29,7 @@ type K8s struct {
 	IngressClasses   map[string]*IngressClass
 	NamespacesAccess NamespacesWatch
 	ConfigMaps       ConfigMaps
+	Nodes            map[string]*v1.Node
 }
 
 type NamespacesWatch struct {
@@ -65,6 +67,7 @@ func NewK8sStore(args utils.OSArgs) K8s {
 				Name:      args.ConfigMapPatternFiles.Name,
 			},
 		},
+		Nodes: make(map[string]*v1.Node),
 	}
 }
 

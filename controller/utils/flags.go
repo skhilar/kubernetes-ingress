@@ -66,32 +66,34 @@ func (n *LogLevelValue) UnmarshalFlag(value string) error {
 }
 
 type SyncBackendValue struct {
-	Name string
-	Port int
+	Name                string
+	Port                int
+	IsMasterNodeBackend bool
 }
 
 // UnmarshalFlag Unmarshal flag
 func (b *SyncBackendValue) UnmarshalFlag(value string) error {
 	parts := strings.Split(value, "/")
 
-	if len(parts) != 2 {
+	if len(parts) != 3 {
 		return errors.New("expected two strings separated by a /")
 	}
 	b.Name = parts[0]
 	b.Port, _ = strconv.Atoi(parts[1])
+	b.IsMasterNodeBackend, _ = strconv.ParseBool(parts[2])
 	return nil
 }
 
 // MarshalFlag Marshals flag
 func (b SyncBackendValue) MarshalFlag() (string, error) {
-	return fmt.Sprintf("%s/%d", b.Name, b.Port), nil
+	return fmt.Sprintf("%s/%d/%v", b.Name, b.Port, b.IsMasterNodeBackend), nil
 }
 
 func (b SyncBackendValue) String() string {
 	if b.Port == 0 || b.Name == "" {
 		return ""
 	}
-	return fmt.Sprintf("%s/%d", b.Name, b.Port)
+	return fmt.Sprintf("%s/%d/%v", b.Name, b.Port, b.IsMasterNodeBackend)
 }
 
 // OSArgs contains arguments that can be sent to controller
@@ -132,4 +134,5 @@ type OSArgs struct { //nolint:maligned
 	PromotheusPort             int64              `long:"enable-prometheus-port" description:"port to listen on for Prometheus metrics"`
 	ChannelSize                int64              `long:"channel-size" description:"sets the size of controller buffers used to receive and send k8s events.NOTE: increase the value to accommodate large number of resources "`
 	SyncBackend                []SyncBackendValue `long:"sync-backend" description:"haproxy backend to be synced for k8s node update"`
+	ExcludeBackends            []string           `long:"exclude-backends" description:"exclude the backend from monitoring"`
 }

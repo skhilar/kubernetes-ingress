@@ -16,6 +16,7 @@ package service
 
 import (
 	"fmt"
+	core "k8s.io/api/core/v1"
 	"strings"
 
 	"github.com/haproxytech/models"
@@ -42,11 +43,22 @@ func (s *Service) HandleHAProxySrvs(client api.HAProxyClient, store store.K8s) (
 		srvsScaled = s.scaleHAProxySrvs(backend)
 	}
 	// update servers
-	for _, srvSlot := range backend.HAProxySrvs {
+	//Mapped to ingress node port
+	nodePort := s.path.SvcPortResolved.NodePort
+	cnt := 0
+	for _, node := range store.Nodes {
+		slot := backend.HAProxySrvs[cnt]
+		logger.Infof("Adding adderess for %s ", slot.Name)
+		slot.Address = s.addressByAddressType(node)
+		logger.Infof("Slot address %s ", slot.Address)
+		s.updateHAProxySrv(client, *slot, nodePort)
+		cnt++
+	}
+	/*for _, srvSlot := range backend.HAProxySrvs {
 		if srvSlot.Modified || s.newBackend {
 			s.updateHAProxySrv(client, *srvSlot, backend.Endpoints.Port)
 		}
-	}
+	}*/
 	if backend.DynUpdateFailed {
 		backend.DynUpdateFailed = false
 		return true
@@ -190,4 +202,13 @@ func (s *Service) getExternalNameEndpoints() (endpoints *store.RuntimeBackend, e
 		},
 	}
 	return endpoints, nil
+}
+
+func (s *Service) addressByAddressType(node *core.Node) string {
+	for _, address := range node.Status.Addresses {
+		if string(address.Type) == "InternalIP" {
+			return address.Address
+		}
+	}
+	return ""
 }

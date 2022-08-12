@@ -2,6 +2,7 @@ package syncer
 
 import (
 	"github.com/haproxytech/kubernetes-ingress/controller/haproxy/api"
+	"github.com/haproxytech/kubernetes-ingress/controller/store"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -38,6 +39,13 @@ func WithK8sClient(client *kubernetes.Clientset) OptionFunc {
 func WithApiClient(apiClient api.HAProxyClient) OptionFunc {
 	return func(s *Syncer) error {
 		s.apiClient = apiClient
+		return nil
+	}
+}
+
+func WithK8sStore(store store.K8s) OptionFunc {
+	return func(s *Syncer) error {
+		s.store = store
 		return nil
 	}
 }

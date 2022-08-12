@@ -28,6 +28,9 @@ type UpdateHandler interface {
 
 func (c *HAProxyController) initHandlers() {
 	// handlers executed only once at controller initialization
+	//Do a cleanup if there are any transaction pending
+	cleanup := handler.CleanUp{}
+	cleanup.Update(c.Store, &c.Cfg, c.Client)
 	logger.Panic(c.clientAPIClosure(c.startupHandlers))
 
 	// handlers executed at reconciliation loop

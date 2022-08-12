@@ -167,7 +167,7 @@ func (h HTTPS) Update(k store.K8s, cfg *config.ControllerCfg, api api.HAProxyCli
 		}
 		reload = reload || r
 	} else if cfg.HTTPS {
-		logger.Panic(api.FrontendDisableSSLOffload(cfg.FrontHTTPS))
+		//logger.Panic(api.FrontendDisableSSLOffload(cfg.FrontHTTPS))
 		cfg.HTTPS = false
 		reload = true
 		logger.Debug("SSLOffload disabled, reload required")
